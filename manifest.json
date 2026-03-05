@@ -1,0 +1,26 @@
+{
+  "name": "Foundation Calculator",
+  "short_name": "Foundation Calc",
+  "description": "Concrete, rebar & cost estimator for footings, stem walls, and slabs",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#111314",
+  "theme_color": "#111314",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity"],
+  "screenshots": []
+}

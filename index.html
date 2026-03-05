@@ -1,0 +1,2485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Foundation Calc">
+<meta name="theme-color" content="#111314">
+<meta name="description" content="Concrete volume, rebar, and cost estimator for residential foundation, stem wall, and slab pours">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Foundation Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --concrete: #c8b89a;
+    --steel: #4a7fa5;
+    --steel-light: #6fa3c8;
+    --dark: #1a1c1e;
+    --darker: #111314;
+    --panel: #22262b;
+    --panel-light: #2c3138;
+    --border: #383e46;
+    --text: #e8e0d5;
+    --text-dim: #8a8278;
+    --accent: #e8a040;
+    --green: #5a9e6f;
+    --slab-accent: #7a9e5a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--darker);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(74,127,165,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,127,165,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+  header {
+    margin-bottom: 32px;
+    border-left: 4px solid var(--accent);
+    padding-left: 20px;
+  }
+  header .label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(42px, 7vw, 72px);
+    letter-spacing: 0.03em;
+    line-height: 0.9;
+    color: var(--text);
+  }
+  header h1 span { color: var(--accent); }
+  header p { margin-top: 10px; font-size: 14px; color: var(--text-dim); font-weight: 300; }
+
+  /* TABS */
+  .tab-bar {
+    display: flex;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 12px 28px 12px 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.2s, border-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border);
+    transition: background 0.2s;
+  }
+  .tab-btn.active .dot { background: var(--accent); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* SHARED FORM */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .grid.four  { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  @media (max-width: 640px) {
+    .grid, .grid.three, .grid.four { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 400px) {
+    .grid, .grid.three, .grid.four { grid-template-columns: 1fr; }
+  }
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--steel-light);
+    margin-bottom: 12px;
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .input-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    transition: border-color 0.2s;
+  }
+  .input-card:focus-within { border-color: var(--steel); }
+  .input-card label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .input-card .hint { font-size: 10px; color: var(--text-dim); margin-top: 5px; font-style: italic; }
+  .input-row { display: flex; align-items: center; gap: 8px; }
+  .input-row input, .input-row select {
+    flex: 1;
+    background: var(--darker);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    padding: 8px 12px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-row select { font-size: 13px; cursor: pointer; }
+  .input-row input:focus, .input-row select:focus { border-color: var(--accent); }
+  .input-row .unit {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    min-width: 28px;
+  }
+
+  /* DIAGRAMS */
+  .diagram-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .diagram-wrap svg { width: 100%; height: auto; display: block; }
+
+  /* RESULTS */
+  .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
+  @media (max-width: 640px) { .results-grid { grid-template-columns: 1fr; } }
+  .result-block { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .result-block .block-header {
+    background: var(--panel-light);
+    padding: 10px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .result-block.concrete .block-header { border-top: 3px solid var(--concrete); }
+  .result-block.rebar    .block-header { border-top: 3px solid var(--steel); }
+  .result-block.wwm      .block-header { border-top: 3px solid var(--slab-accent); }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-row .r-label { color: var(--text-dim); font-size: 12px; }
+  .result-row .r-value { font-family: 'IBM Plex Mono', monospace; font-weight: 500; color: var(--text); }
+
+  /* ORDER BANNERS */
+  .order-banner {
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .order-banner.foundation { background: linear-gradient(135deg, #1e2a1a, #1a2620); border: 1px solid var(--green); }
+  .order-banner.slab       { background: linear-gradient(135deg, #1a2620, #1e2818); border: 1px solid var(--slab-accent); }
+  .order-item {
+    flex: 1;
+    min-width: 140px;
+    padding: 0 20px;
+    border-left: 1px solid rgba(90,158,111,0.25);
+  }
+  .order-banner.slab .order-item { border-left-color: rgba(122,158,90,0.25); }
+  .order-item:first-child { border-left: none; padding-left: 0; }
+  .ob-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .order-banner.foundation .ob-label { color: var(--green); }
+  .order-banner.slab       .ob-label { color: var(--slab-accent); }
+  .ob-value { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--text); line-height: 1; }
+  .order-banner.foundation .ob-value span { color: var(--green); }
+  .order-banner.slab       .ob-value span { color: var(--slab-accent); }
+
+  /* PERIMETER / AREA BARS */
+  .info-bar {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .ib-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+  .ib-value { font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 500; color: var(--steel-light); }
+  .ib-group { display: flex; gap: 32px; flex-wrap: wrap; }
+  .ib-item .ib-label { margin-bottom: 2px; }
+  .ib-item .ib-value { color: var(--slab-accent); }
+
+  /* TOGGLE / OPTIONS */
+  .options-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .opt-group { display: flex; align-items: center; gap: 8px; }
+  .opt-group label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .opt-group input[type=checkbox], .opt-group input[type=radio] {
+    width: 15px; height: 15px; cursor: pointer;
+    accent-color: var(--slab-accent);
+  }
+  .opt-divider { width: 1px; height: 20px; background: var(--border); }
+
+  /* CUTOUTS */
+  .subpanel { background: var(--panel-light); border: 1px solid var(--border); border-radius: 4px; padding: 16px; margin-bottom: 16px; }
+  .subpanel-title { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; }
+  .cutout-row { display: grid; grid-template-columns: 1fr 1fr 1.4fr auto; gap: 10px; align-items: end; margin-bottom: 10px; }
+  @media (max-width: 500px) { .cutout-row { grid-template-columns: 1fr 1fr; } }
+  .z-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-dim); margin-bottom: 4px; }
+  .cutout-row input {
+    background: var(--darker);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 16px;
+    font-weight: 500;
+    padding: 7px 10px;
+    width: 100%;
+    outline: none;
+  }
+  .cutout-row input:focus { border-color: var(--accent); }
+  .btn-remove {
+    background: rgba(180,60,60,0.12);
+    border: 1px solid rgba(180,60,60,0.3);
+    border-radius: 3px;
+    color: #e05050;
+    font-size: 16px;
+    padding: 6px 12px;
+    cursor: pointer;
+    align-self: flex-end;
+    transition: background 0.2s;
+  }
+  .btn-remove:hover { background: rgba(180,60,60,0.28); }
+  .btn-add {
+    background: rgba(74,127,165,0.08);
+    border: 1px solid rgba(74,127,165,0.28);
+    border-radius: 3px;
+    color: var(--steel-light);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 4px;
+  }
+  .btn-add:hover { background: rgba(74,127,165,0.18); }
+
+  .note { font-size: 11px; color: var(--text-dim); font-style: italic; margin-top: 8px; padding: 0 4px; line-height: 1.7; }
+
+  /* PRICING TAB */
+  .price-section-header {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 0.05em;
+    color: var(--text);
+    margin-top: 32px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .price-section-header .psh-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .price-section-header.foundation-color .psh-dot { background: var(--green); }
+  .price-section-header.slab-color .psh-dot { background: var(--slab-accent); }
+
+  .price-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+  }
+  .price-table th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 8px 14px;
+    text-align: left;
+    background: var(--panel-light);
+    border-bottom: 1px solid var(--border);
+  }
+  .price-table th:last-child, .price-table td:last-child { text-align: right; }
+  .price-table th:nth-child(3), .price-table td:nth-child(3) { text-align: right; }
+  .price-table tr { border-bottom: 1px solid var(--border); }
+  .price-table tr:last-child { border-bottom: none; }
+  .price-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+  .price-table td {
+    padding: 11px 14px;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  .pt-item { color: var(--text); }
+  .pt-qty {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .pt-price-cell { text-align: right; }
+  .pt-price-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--darker);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 5px 8px;
+    transition: border-color 0.2s;
+  }
+  .pt-price-wrap:focus-within { border-color: var(--accent); }
+  .pt-price-wrap .dollar { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--text-dim); }
+  .pt-price-wrap input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    width: 80px;
+    text-align: right;
+  }
+  .pt-unit { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+  .pt-total {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--accent);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .pt-total.dim { color: var(--text-dim); font-size: 12px; }
+
+  .price-subtotal-row td {
+    background: var(--panel-light);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 9px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .price-subtotal-row td:last-child {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text);
+    text-align: right;
+  }
+
+  .grand-total-box {
+    background: linear-gradient(135deg, #1a1e22, #1e2428);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 24px 28px;
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .gt-left .gt-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .gt-left .gt-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .gt-right {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px;
+    color: var(--accent);
+    line-height: 1;
+    letter-spacing: 0.02em;
+  }
+  .price-note {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-top: 10px;
+    line-height: 1.7;
+  }
+  .no-prices-msg {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+  .price-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .price-block.foundation-color { border-top: 3px solid var(--green); }
+  .price-block.slab-color        { border-top: 3px solid var(--slab-accent); }
+
+  /* PHASE HEADERS */
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: 4px 4px 0 0;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    background: var(--panel-light);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .phase-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .phase1 .phase-badge { background: rgba(176,128,64,0.2); color: #c8943a; border: 1px solid rgba(176,128,64,0.4); }
+  .phase2 .phase-badge { background: rgba(90,158,111,0.2); color: var(--green); border: 1px solid rgba(90,158,111,0.4); }
+  .phase3 .phase-badge { background: rgba(122,158,90,0.2); color: var(--slab-accent); border: 1px solid rgba(122,158,90,0.4); }
+  .phase-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 0.05em;
+    color: var(--text);
+  }
+  .phase-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Sans', sans-serif;
+    margin-left: auto;
+  }
+  @media (max-width: 600px) { .phase-sub { margin-left: 0; width: 100%; } }
+
+  /* PHASE SUMMARY BAR */
+  .phase-summary-bar {
+    display: flex;
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px 24px;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .psb-item {
+    flex: 1;
+    min-width: 120px;
+    padding: 0 16px;
+    border-left: 1px solid var(--border);
+  }
+  .psb-item:first-child { border-left: none; padding-left: 0; }
+  .psb-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .psb-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--text);
+    line-height: 1;
+  }
+  .psb-plus {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    color: var(--border);
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+  @media (max-width: 600px) {
+    .psb-plus { display: none; }
+    .psb-item { border-left: none; border-top: 1px solid var(--border); padding: 10px 0 0 0; width: 100%; }
+    .psb-item:first-child { border-top: none; padding-top: 0; }
+  }
+
+  /* ── INLINE OC TOOLTIPS ── */
+  .input-card.has-tooltip { position: relative; }
+  .oc-tooltip-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: rgba(74,127,165,0.15);
+    border: 1px solid rgba(74,127,165,0.4);
+    color: var(--steel-light);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+    transition: background 0.2s;
+    z-index: 10;
+  }
+  .oc-tooltip-btn:hover { background: rgba(74,127,165,0.3); }
+  .oc-tooltip-btn.active { background: rgba(232,160,64,0.2); border-color: var(--accent); color: var(--accent); }
+  .oc-tooltip-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 340px;
+    max-width: 90vw;
+    background: #1a1e24;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    z-index: 100;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .oc-tooltip-panel.open { display: block; }
+  .otp-header {
+    background: rgba(232,160,64,0.1);
+    padding: 8px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border-bottom: 1px solid rgba(232,160,64,0.2);
+  }
+  .otp-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+    align-items: center;
+  }
+  .otp-row:last-child { border-bottom: none; }
+  .otp-row:hover { background: rgba(255,255,255,0.04); }
+  .otp-row.current { background: rgba(232,160,64,0.08); }
+  .otp-spacing {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .otp-row:hover .otp-spacing, .otp-row.current .otp-spacing { color: var(--accent); }
+  .otp-label { font-size: 11px; color: var(--text-dim); }
+  .otp-code { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--steel-light); text-align: right; }
+  .otp-seismic {
+    font-size: 9px;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 6px 12px;
+    background: rgba(74,127,165,0.06);
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    line-height: 1.6;
+  }
+
+  /* ── REFERENCE TAB ── */
+  .ref-section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .rst-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 2px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .ref-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  @media (max-width: 640px) { .ref-two-col { grid-template-columns: 1fr; } }
+  .ref-diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    padding: 16px;
+  }
+  .rdc-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--steel-light);
+    margin-bottom: 10px;
+  }
+  .rdc-caption {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    line-height: 1.6;
+    min-height: 18px;
+  }
+  .ref-notes-card {
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  .rnc-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .rnc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+  }
+  @media (max-width: 640px) { .rnc-grid { grid-template-columns: 1fr; } }
+  .rnc-item { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .rnc-item:last-child, .rnc-item:nth-last-child(2):nth-child(odd) { border-bottom: none; }
+  .rnc-key { font-size: 11px; color: var(--accent); font-family: 'IBM Plex Mono', monospace; }
+  .rnc-val { font-size: 12px; color: var(--text); line-height: 1.5; }
+  .ref-oc-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--steel-light);
+    margin-bottom: 10px;
+  }
+  .oc-table-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow-x: auto;
+    margin-bottom: 8px;
+  }
+  .oc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .oc-table th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: var(--panel-light);
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .oc-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+  }
+  .oc-table tr:last-child td { border-bottom: none; }
+  .oc-table tbody tr:hover td { background: rgba(255,255,255,0.025); }
+  .oc-highlight td {
+    background: rgba(232,160,64,0.06);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+  }
+  .oc-highlight:hover td { background: rgba(232,160,64,0.10) !important; }
+
+  /* Legend items in slab tab */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .legend-swatch {
+    width: 32px;
+    height: 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .legend-swatch.rebar { background: #4a7fa5; }
+  .legend-swatch.dim   { background: #6fa3c8; border: 1px dashed #6fa3c8; }
+  .legend-swatch.cover { background: #c8943a; }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #4a7fa5; flex-shrink: 0;
+    border: 1.5px solid #2a5070;
+  }
+
+  footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="label">Residential Construction Tool</div>
+    <h1>Foundation<br><span>Calculator</span></h1>
+    <p>Concrete volume &amp; rebar estimation for perimeter footings, stem walls, and main slab</p>
+  </header>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="btn-foundation" onclick="switchTab('foundation', this)">
+      <span class="dot"></span>Footing &amp; Stem Wall
+    </button>
+    <button class="tab-btn" id="btn-slab" onclick="switchTab('slab', this)">
+      <span class="dot"></span>Main Slab Pour
+    </button>
+    <button class="tab-btn" id="btn-pricing" onclick="switchTab('pricing', this); calcPricing()">
+      <span class="dot"></span>Pricing &amp; Cost
+    </button>
+    <button class="tab-btn" id="btn-reference" onclick="switchTab('reference', this); drawRebarDiagrams()">
+      <span class="dot"></span>Rebar Reference
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TAB 1 — FOUNDATION                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="tab-foundation" class="tab-pane active">
+
+    <div class="section-label">House Dimensions</div>
+    <div class="grid">
+      <div class="input-card"><label>House Length</label>
+        <div class="input-row"><input type="number" id="houseLength" value="77" step="0.5" min="1"><span class="unit">ft</span></div></div>
+      <div class="input-card"><label>House Width</label>
+        <div class="input-row"><input type="number" id="houseWidth" value="31.5" step="0.5" min="1"><span class="unit">ft</span></div></div>
+    </div>
+
+    <div class="section-label">Footing</div>
+    <div class="grid three">
+      <div class="input-card"><label>Footing Width</label>
+        <div class="input-row"><input type="number" id="footingWidth" value="18" step="1" min="1"><span class="unit">in</span></div></div>
+      <div class="input-card"><label>Footing Thickness</label>
+        <div class="input-row"><input type="number" id="footingThick" value="12" step="1" min="1"><span class="unit">in</span></div></div>
+      <div class="input-card has-tooltip"><label>Rebar Runs</label>
+        <button class="oc-tooltip-btn" onclick="toggleTooltip('tt-footing-bars',this)" title="Code options">?</button>
+        <div class="input-row"><input type="number" id="footingRebar" value="2" step="1" min="1" max="4"><span class="unit">bars</span></div>
+        <div class="oc-tooltip-panel" id="tt-footing-bars">
+          <div class="otp-header">Code-Compliant Footing Bar Configurations</div>
+          <div class="otp-row" onclick="applyOC('footingRebar',2,'tt-footing-bars')"><span class="otp-spacing">2 bars</span><span class="otp-label">Standard residential</span><span class="otp-code">IRC R403.1</span></div>
+          <div class="otp-row" onclick="applyOC('footingRebar',2,'tt-footing-bars')"><span class="otp-spacing">2 × #4</span><span class="otp-label">1–2 story, 18" footing</span><span class="otp-code">ACI 318</span></div>
+          <div class="otp-row" onclick="applyOC('footingRebar',2,'tt-footing-bars')"><span class="otp-spacing">2 × #5</span><span class="otp-label">Heavy load / 2+ story</span><span class="otp-code">ACI 318</span></div>
+          <div class="otp-row" onclick="applyOC('footingRebar',3,'tt-footing-bars')"><span class="otp-spacing">3 bars</span><span class="otp-label">Wide footing ≥24" / soft soil</span><span class="otp-code">ACI 318 §13.3</span></div>
+          <div class="otp-row" onclick="applyOC('footingRebar',3,'tt-footing-bars')"><span class="otp-spacing">3 × #5</span><span class="otp-label">Seismic Zone C/D</span><span class="otp-code">IBC §1805</span></div>
+          <div class="otp-seismic">Min cover: 3" cast against earth · Lap splice #4: 24" min · Hook 90° at corners</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Stem Wall</div>
+    <div class="grid three">
+      <div class="input-card"><label>Wall Width</label>
+        <div class="input-row"><input type="number" id="wallWidth" value="8" step="1" min="1"><span class="unit">in</span></div></div>
+      <div class="input-card"><label>Below Grade Depth</label>
+        <div class="input-row"><input type="number" id="belowGrade" value="18" step="1" min="0"><span class="unit">in</span></div></div>
+      <div class="input-card"><label>Above Grade Height</label>
+        <div class="input-row"><input type="number" id="aboveGrade" value="10" step="1" min="0"><span class="unit">in</span></div></div>
+    </div>
+
+    <div class="section-label">Rebar Settings</div>
+    <div class="grid">
+      <div class="input-card has-tooltip"><label>Vertical Spacing (OC)</label>
+        <button class="oc-tooltip-btn" onclick="toggleTooltip('tt-wall-oc',this)" title="Code options">?</button>
+        <div class="input-row"><input type="number" id="rebarSpacing" value="24" step="4" min="8"><span class="unit">in</span></div>
+        <div class="oc-tooltip-panel" id="tt-wall-oc">
+          <div class="otp-header">Code-Compliant Vertical Spacing — Stem Wall</div>
+          <div class="otp-row" onclick="applyOC('rebarSpacing',48,'tt-wall-oc')"><span class="otp-spacing">48" OC</span><span class="otp-label">Short wall, low seismic</span><span class="otp-code">IRC R404 Zone A</span></div>
+          <div class="otp-row" onclick="applyOC('rebarSpacing',24,'tt-wall-oc')"><span class="otp-spacing">24" OC</span><span class="otp-label">Standard — most common</span><span class="otp-code">IRC R404 Zone A/B</span></div>
+          <div class="otp-row" onclick="applyOC('rebarSpacing',16,'tt-wall-oc')"><span class="otp-spacing">16" OC</span><span class="otp-label">Taller walls, moderate seismic</span><span class="otp-code">ACI 318-19 Zone B/C</span></div>
+          <div class="otp-row" onclick="applyOC('rebarSpacing',12,'tt-wall-oc')"><span class="otp-spacing">12" OC</span><span class="otp-label">Tall / high seismic / hillside</span><span class="otp-code">IBC §1807 Zone C/D</span></div>
+          <div class="otp-row" onclick="applyOC('rebarSpacing',8,'tt-wall-oc')"><span class="otp-spacing">8" OC</span><span class="otp-label">Retaining wall / extreme seismic</span><span class="otp-code">ACI 318-19 §18.10</span></div>
+          <div class="otp-seismic">Min cover: 2" (formed) · Tie every intersection · Anchor bolts ≤6' OC at top · IRC R403.1.6</div>
+        </div>
+      </div>
+      <div class="input-card"><label>Rebar Stick Length</label>
+        <div class="input-row"><input type="number" id="stickLength" value="20" step="2" min="10"><span class="unit">ft</span></div></div>
+    </div>
+
+    <div class="section-label">Cross Section</div>
+    <div class="diagram-wrap">
+      <svg id="fDiagram" viewBox="0 0 500 260" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="info-bar">
+      <span class="ib-label">Total Perimeter</span>
+      <span class="ib-value" id="perimeterDisplay">— ft</span>
+    </div>
+
+    <div class="section-label">Concrete Estimate</div>
+    <div class="results-grid">
+      <div class="result-block concrete"><div class="block-header">Footing</div>
+        <div class="result-row"><span class="r-label">Volume</span><span class="r-value" id="footingCuFt">—</span></div>
+        <div class="result-row"><span class="r-label">Cubic Yards</span><span class="r-value" id="footingCuYd">—</span></div></div>
+      <div class="result-block concrete"><div class="block-header">Stem Wall</div>
+        <div class="result-row"><span class="r-label">Volume</span><span class="r-value" id="wallCuFt">—</span></div>
+        <div class="result-row"><span class="r-label">Cubic Yards</span><span class="r-value" id="wallCuYd">—</span></div></div>
+    </div>
+
+    <div class="section-label">Rebar Estimate</div>
+    <div class="results-grid">
+      <div class="result-block rebar"><div class="block-header">Footing Rebar</div>
+        <div class="result-row"><span class="r-label">Horizontal runs</span><span class="r-value" id="footingHoriz">—</span></div>
+        <div class="result-row"><span class="r-label">Vertical dowels</span><span class="r-value" id="footingVert">—</span></div>
+        <div class="result-row"><span class="r-label">Linear feet</span><span class="r-value" id="footingLinFt">—</span></div></div>
+      <div class="result-block rebar"><div class="block-header">Stem Wall Rebar</div>
+        <div class="result-row"><span class="r-label">Horizontal runs</span><span class="r-value" id="wallHoriz">—</span></div>
+        <div class="result-row"><span class="r-label">Verticals</span><span class="r-value" id="wallVert">—</span></div>
+        <div class="result-row"><span class="r-label">Linear feet</span><span class="r-value" id="wallLinFt">—</span></div></div>
+    </div>
+    <p class="note">* Horizontal bar count based on wall height ÷ ~9" spacing minimum. Vertical count based on OC spacing above.</p>
+
+    <div class="order-banner foundation">
+      <div class="order-item"><div class="ob-label">Order Concrete</div><div class="ob-value"><span id="orderConcrete">—</span> yds</div></div>
+      <div class="order-item"><div class="ob-label">Order Rebar (#4)</div><div class="ob-value"><span id="orderRebar">—</span> sticks</div></div>
+      <div class="order-item"><div class="ob-label">Total Rebar</div><div class="ob-value"><span id="totalRebarFt">—</span> <span style="font-size:18px;color:var(--text-dim)">lin ft</span></div></div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TAB 2 — SLAB                               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="tab-slab" class="tab-pane">
+
+    <div class="section-label">Slab Dimensions</div>
+    <div class="grid three">
+      <div class="input-card"><label>Slab Length</label>
+        <div class="input-row"><input type="number" id="slabLength" value="77" step="0.5" min="1"><span class="unit">ft</span></div></div>
+      <div class="input-card"><label>Slab Width</label>
+        <div class="input-row"><input type="number" id="slabWidth" value="31.5" step="0.5" min="1"><span class="unit">ft</span></div></div>
+      <div class="input-card"><label>Slab Thickness</label>
+        <div class="input-row"><input type="number" id="slabThick" value="4" step="1" min="1"><span class="unit">in</span></div></div>
+    </div>
+
+    <div class="section-label">Thickened Perimeter Edge</div>
+    <div class="options-row">
+      <div class="opt-group">
+        <input type="checkbox" id="hasThickEdge" onchange="toggleEdge()">
+        <label for="hasThickEdge">Include thickened monolithic edge beam</label>
+      </div>
+    </div>
+    <div id="thickEdgeInputs" style="display:none">
+      <div class="grid four">
+        <div class="input-card"><label>Edge Width</label>
+          <div class="input-row"><input type="number" id="edgeWidth" value="12" step="1" min="1"><span class="unit">in</span></div></div>
+        <div class="input-card"><label>Total Edge Depth</label>
+          <div class="input-row"><input type="number" id="edgeDepth" value="16" step="1" min="1"><span class="unit">in</span></div>
+          <div class="hint">From top of slab down</div></div>
+        <div class="input-card"><label>Edge Rebar Runs</label>
+          <div class="input-row"><input type="number" id="edgeRebarRuns" value="2" step="1" min="1" max="4"><span class="unit">bars</span></div></div>
+        <div class="input-card"><label>Edge Bar Size</label>
+          <div class="input-row"><select id="edgeRebarSize"><option value="3">#3</option><option value="4" selected>#4</option><option value="5">#5</option></select></div></div>
+      </div>
+    </div>
+
+    <div class="section-label">Slab Reinforcement</div>
+    <div class="options-row">
+      <span class="ib-label" style="margin-right:4px">Type:</span>
+      <div class="opt-group"><input type="radio" name="reinfType" id="reinfRebar" value="rebar" checked onchange="updateReinfUI()"><label for="reinfRebar">Rebar Grid</label></div>
+      <div class="opt-divider"></div>
+      <div class="opt-group"><input type="radio" name="reinfType" id="reinfWWM" value="wwm" onchange="updateReinfUI()"><label for="reinfWWM">Welded Wire Mesh</label></div>
+      <div class="opt-divider"></div>
+      <div class="opt-group"><input type="radio" name="reinfType" id="reinfBoth" value="both" onchange="updateReinfUI()"><label for="reinfBoth">Both</label></div>
+    </div>
+
+    <div id="rebarGridInputs">
+      <div class="grid four">
+        <div class="input-card"><label>Bar Size</label>
+          <div class="input-row"><select id="slabRebarSize"><option value="3">#3</option><option value="4" selected>#4</option><option value="5">#5</option></select></div></div>
+        <div class="input-card has-tooltip"><label>Spacing (OC)</label>
+          <button class="oc-tooltip-btn" onclick="toggleTooltip('tt-slab-oc',this)" title="Code options">?</button>
+          <div class="input-row"><input type="number" id="slabRebarOC" value="18" step="6" min="6"><span class="unit">in</span></div>
+          <div class="oc-tooltip-panel" id="tt-slab-oc">
+            <div class="otp-header">Code-Compliant On-Center Spacing — Slab</div>
+            <div class="otp-row" onclick="applyOC('slabRebarOC',24,'tt-slab-oc')"><span class="otp-spacing">24" OC</span><span class="otp-label">#3 · 4" slab · light residential</span><span class="otp-code">ACI 318 §7.6 Zone A/B</span></div>
+            <div class="otp-row" onclick="applyOC('slabRebarOC',18,'tt-slab-oc')"><span class="otp-spacing">18" OC</span><span class="otp-label">#4 · 4–5" · standard residential</span><span class="otp-code">ACI 318 §7.6 Zone A/B/C</span></div>
+            <div class="otp-row" onclick="applyOC('slabRebarOC',16,'tt-slab-oc')"><span class="otp-spacing">16" OC</span><span class="otp-label">#4 · 4–5" · garage / moderate</span><span class="otp-code">ACI 318-19 Zone B/C</span></div>
+            <div class="otp-row" onclick="applyOC('slabRebarOC',12,'tt-slab-oc')"><span class="otp-spacing">12" OC</span><span class="otp-label">#4 · 5–6" · heavy vehicles</span><span class="otp-code">ACI 318 §7.6.4 Zone C/D</span></div>
+            <div class="otp-row" onclick="applyOC('slabRebarOC',12,'tt-slab-oc')"><span class="otp-spacing">12" OC #5</span><span class="otp-label">6" slab · commercial / high seismic</span><span class="otp-code">IBC §1906 Zone D/E</span></div>
+            <div class="otp-seismic">Min cover: ¾" (interior) · Bars at upper ⅓ depth · Control joints every 10–15' · Lap splice #4: 18" min</div>
+          </div>
+        </div>
+        <div class="input-card"><label>Layers</label>
+          <div class="input-row"><select id="slabRebarLayers"><option value="1" selected>Single mat</option><option value="2">Double mat</option></select></div></div>
+        <div class="input-card"><label>Stick Length</label>
+          <div class="input-row"><input type="number" id="slabStickLen" value="20" step="2" min="10"><span class="unit">ft</span></div></div>
+      </div>
+    </div>
+
+    <div id="wwmInputs" style="display:none">
+      <div class="grid">
+        <div class="input-card"><label>WWM Specification</label>
+          <div class="input-row"><select id="wwmSize">
+            <option value="6x6-w1.4">6×6 W1.4/W1.4 (10 gauge)</option>
+            <option value="6x6-w2.0" selected>6×6 W2.0/W2.0 (6 gauge)</option>
+            <option value="4x4-w1.4">4×4 W1.4/W1.4 (10 gauge)</option>
+            <option value="4x4-w2.0">4×4 W2.0/W2.0 (6 gauge)</option>
+          </select></div></div>
+        <div class="input-card"><label>Sheet Width</label>
+          <div class="input-row"><input type="number" id="wwmSheetWidth" value="5" step="0.5" min="1"><span class="unit">ft</span></div>
+          <div class="hint">Standard sheets 5×10 ft or rolls</div></div>
+      </div>
+    </div>
+
+    <div class="section-label">Cutouts &amp; Deductions <span style="font-weight:300;color:var(--text-dim);font-size:9px;letter-spacing:0"> — optional</span></div>
+    <div class="subpanel">
+      <div class="subpanel-title">Areas to subtract from slab (garage doors, hearths, post pockets, etc.)</div>
+      <div id="cutoutList"></div>
+      <button class="btn-add" onclick="addCutout()">+ Add Cutout</button>
+    </div>
+
+    <div class="section-label">Cross Section View</div>
+    <div class="diagram-wrap">
+      <svg id="sDiagram" viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="info-bar">
+      <div class="ib-group">
+        <div class="ib-item"><div class="ib-label">Gross Area</div><div class="ib-value" id="slabGrossArea">—</div></div>
+        <div class="ib-item"><div class="ib-label">Cutouts</div><div class="ib-value" id="slabCutArea" style="color:var(--text-dim)">—</div></div>
+        <div class="ib-item"><div class="ib-label">Net Area</div><div class="ib-value" id="slabNetArea">—</div></div>
+      </div>
+    </div>
+
+    <div class="section-label">Concrete Estimate</div>
+    <div class="results-grid">
+      <div class="result-block concrete"><div class="block-header">Main Slab</div>
+        <div class="result-row"><span class="r-label">Net area</span><span class="r-value" id="sConcArea">—</span></div>
+        <div class="result-row"><span class="r-label">Volume</span><span class="r-value" id="sConcCuFt">—</span></div>
+        <div class="result-row"><span class="r-label">Cubic yards</span><span class="r-value" id="sConcCuYd">—</span></div></div>
+      <div class="result-block concrete" id="edgeResultBlock"><div class="block-header">Thickened Edge</div>
+        <div class="result-row"><span class="r-label">Perimeter</span><span class="r-value" id="sEdgePerim">—</span></div>
+        <div class="result-row"><span class="r-label">Extra volume</span><span class="r-value" id="sEdgeCuFt">—</span></div>
+        <div class="result-row"><span class="r-label">Cubic yards</span><span class="r-value" id="sEdgeCuYd">—</span></div></div>
+    </div>
+
+    <div class="section-label">Reinforcement Estimate</div>
+    <div class="results-grid">
+      <div class="result-block rebar" id="rebarResultBlock"><div class="block-header">Rebar Grid</div>
+        <div class="result-row"><span class="r-label">Bars — long direction</span><span class="r-value" id="sRebarLong">—</span></div>
+        <div class="result-row"><span class="r-label">Bars — short direction</span><span class="r-value" id="sRebarShort">—</span></div>
+        <div class="result-row"><span class="r-label">Total linear feet</span><span class="r-value" id="sRebarLF">—</span></div>
+        <div class="result-row"><span class="r-label">Sticks needed</span><span class="r-value" id="sRebarSticks">—</span></div></div>
+      <div class="result-block wwm" id="wwmResultBlock"><div class="block-header">Welded Wire Mesh</div>
+        <div class="result-row"><span class="r-label">Net slab area</span><span class="r-value" id="sWwmArea">—</span></div>
+        <div class="result-row"><span class="r-label">Coverage w/ 5% overlap</span><span class="r-value" id="sWwmCoverage">—</span></div>
+        <div class="result-row"><span class="r-label">Sheets (5×10 ft)</span><span class="r-value" id="sWwmSheets">—</span></div></div>
+    </div>
+    <p class="note">* Rebar totals include 6" lap splice allowance. * 10% waste factor included in all ORDER quantities below.<br>* Edge rebar (if enabled) calculated separately from slab mat rebar.</p>
+
+    <div class="order-banner slab">
+      <div class="order-item"><div class="ob-label">Order Concrete</div><div class="ob-value"><span id="sOrderConcrete">—</span> yds</div></div>
+      <div class="order-item" id="sOrderRebarItem"><div class="ob-label">Order Rebar</div><div class="ob-value"><span id="sOrderRebar">—</span> sticks</div></div>
+      <div class="order-item" id="sOrderWwmItem" style="display:none"><div class="ob-label">Order WWM</div><div class="ob-value"><span id="sOrderWwm">—</span> sheets</div></div>
+    </div>
+
+  </div><!-- /tab-slab -->
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TAB 3 — PRICING                            -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="tab-pricing" class="tab-pane">
+
+    <div style="margin-bottom:24px">
+      <p style="font-size:13px;color:var(--text-dim);line-height:1.7">Enter your local unit prices below. Quantities are pulled automatically from the other tabs. Each pour phase has its own subtotal so you can budget and schedule them independently.</p>
+    </div>
+
+    <!-- ── PHASE 1: FOOTING ── -->
+    <div class="phase-header phase1">
+      <div class="phase-badge">Phase 1</div>
+      <div class="phase-title">Footing Pour</div>
+      <div class="phase-sub">Perimeter footing only — poured first, below stem wall</div>
+    </div>
+    <div class="price-block" style="border-top:3px solid #b08040;">
+      <table class="price-table">
+        <thead><tr>
+          <th style="width:34%">Item</th>
+          <th style="width:20%;text-align:right">Qty (w/ waste)</th>
+          <th style="width:26%;text-align:right">Unit Price</th>
+          <th style="width:20%;text-align:right">Line Total</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td class="pt-item">Ready-mix concrete</td>
+            <td class="pt-qty" id="p1-conc-qty">—</td>
+            <td class="pt-price-cell"><div class="pt-price-wrap"><span class="dollar">$</span><input type="number" id="p1-conc-price" placeholder="0.00" step="0.01" min="0" oninput="calcPricing()"><span class="pt-unit">/ yd³</span></div></td>
+            <td class="pt-total" id="p1-conc-total">—</td>
+          </tr>
+          <tr>
+            <td class="pt-item">#4 Rebar (footing)</td>
+            <td class="pt-qty" id="p1-rebar-qty">—</td>
+            <td class="pt-price-cell"><div class="pt-price-wrap"><span class="dollar">$</span><input type="number" id="p1-rebar-price" placeholder="0.00" step="0.01" min="0" oninput="calcPricing()"><span class="pt-unit">/ stick</span></div></td>
+            <td class="pt-total" id="p1-rebar-total">—</td>
+          </tr>
+          <tr>
+            <td class="pt-item">Forming &amp; labor</td>
+            <td class="pt-qty" id="p1-labor-qty">—</td>
+            <td class="pt-price-cell"><div class="pt-price-wrap"><span class="dollar">$</span><input type="number" id="p1-labor-price" placeholder="0.00" step="0.01" min="0" oninput="calcPricing()"><span class="pt-unit">/ ln ft</span></div></td>
+            <td class="pt-total" id="p1-labor-total">—</td>
+          </tr>
+        </tbody>
+        <tfoot><tr class="price-subtotal-row"><td colspan="3">Phase 1 Subtotal</td><td id="p1-subtotal">—</td></tr></tfoot>
+      </table>
+    </div>
+
+    <!-- ── PHASE 2: STEM WALL ── -->
+    <div class="phase-header phase2" style="margin-top:28px">
+      <div class="phase-badge">Phase 2</div>
+      <div class="phase-title">Stem Wall Pour</div>
+      <div class="phase-sub">Stem wall on top of footing — poured second</div>
+    </div>
+    <div class="price-block" style="border-top:3px solid var(--green);">
+      <table class="price-table">
+        <thead><tr>
+          <th style="width:34%">Item</th>
+          <th style="width:20%;text-align:right">Qty (w/ waste)</th>
+          <th style="width:26%;text-align:right">Unit Price</th>
+          <th style="width:20%;text-align:right">Line Total</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td class="pt-item">Ready-mix concrete</td>
+            <td class="pt-qty" id="p2-conc-qty">—</td>
+            <td class="pt-price-cell"><div class="pt-price-wrap"><span class="dollar">$</span><input type="number" id="p2-conc-price" placeholder="0.00" step="0.01" min="0" oninput="calcPricing()"><span class="pt-unit">/ yd³</span></div></td>
+            <td class="pt-total" id="p2-conc-total">—</td>
+          </tr>
+          <tr>
+            <td class="pt-item">#4 Rebar (stem wall)</td>
+            <td class="pt-qty" id="p2-rebar-qty">—</td>
+            <td class="pt-price-cell"><div class="pt-price-wrap"><span class="dollar">$</span><input type="number" id="p2-rebar-price" placeholder="0.00" step="0.01" min="0" oninput="calcPricing()"><span class="pt-unit">/ stick</span></div></td>
+            <td class="pt-total" id="p2-rebar-total">—</td>
+          </tr>
+          <tr>
+            <td class="pt-item">Forming &amp; labor</td>
+            <td class="pt-qty" id="p2-labor-qty">—</td>
+            <td class="pt-price-cell"><div class="pt-price-wrap"><span class="dollar">$</span><input type="number" id="p2-labor-price" placeholder="0.00" step="0.01" min="0" oninput="calcPricing()"><span class="pt-unit">/ ln ft</span></div></td>
+            <td class="pt-total" id="p2-labor-total">—</td>
+          </tr>
+        </tbody>
+        <tfoot><tr class="price-subtotal-row"><td colspan="3">Phase 2 Subtotal</td><td id="p2-subtotal">—</td></tr></tfoot>
+      </table>
+    </div>
+
+    <!-- ── PHASE 3: SLAB ── -->
+    <div class="phase-header phase3" style="margin-top:28px">
+      <div class="phase-badge">Phase 3</div>
+      <div class="phase-title">Main Slab Pour</div>
+      <div class="phase-sub">Interior slab — poured last after backfill &amp; gravel base</div>
+    </div>
+    <div class="price-block" style="border-top:3px solid var(--slab-accent);">
+      <table class="price-table">
+        <thead><tr>
+          <th style="width:34%">Item</th>
+          <th style="width:20%;text-align:right">Qty (w/ waste)</th>
+          <th style="width:26%;text-align:right">Unit Price</th>
+          <th style="width:20%;text-align:right">Line Total</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td class="pt-item">Ready-mix concrete</td>
+            <td class="pt-qty" id="p3-conc-qty">—</td>
+            <td class="pt-price-cell"><div class="pt-price-wrap"><span class="dollar">$</span><input type="number" id="p3-conc-price" placeholder="0.00" step="0.01" min="0" oninput="calcPricing()"><span class="pt-unit">/ yd³</span></div></td>
+            <td class="pt-total" id="p3-conc-total">—</td>
+          </tr>
+          <tr id="p3-rebar-row">
+            <td class="pt-item">Rebar (slab mat)</td>
+            <td class="pt-qty" id="p3-rebar-qty">—</td>
+            <td class="pt-price-cell"><div class="pt-price-wrap"><span class="dollar">$</span><input type="number" id="p3-rebar-price" placeholder="0.00" step="0.01" min="0" oninput="calcPricing()"><span class="pt-unit">/ stick</span></div></td>
+            <td class="pt-total" id="p3-rebar-total">—</td>
+          </tr>
+          <tr id="p3-wwm-row">
+            <td class="pt-item">Welded Wire Mesh</td>
+            <td class="pt-qty" id="p3-wwm-qty">—</td>
+            <td class="pt-price-cell"><div class="pt-price-wrap"><span class="dollar">$</span><input type="number" id="p3-wwm-price" placeholder="0.00" step="0.01" min="0" oninput="calcPricing()"><span class="pt-unit">/ sheet</span></div></td>
+            <td class="pt-total" id="p3-wwm-total">—</td>
+          </tr>
+          <tr>
+            <td class="pt-item">Finishing &amp; labor</td>
+            <td class="pt-qty" id="p3-labor-qty">—</td>
+            <td class="pt-price-cell"><div class="pt-price-wrap"><span class="dollar">$</span><input type="number" id="p3-labor-price" placeholder="0.00" step="0.01" min="0" oninput="calcPricing()"><span class="pt-unit">/ ft²</span></div></td>
+            <td class="pt-total" id="p3-labor-total">—</td>
+          </tr>
+        </tbody>
+        <tfoot><tr class="price-subtotal-row"><td colspan="3">Phase 3 Subtotal</td><td id="p3-subtotal">—</td></tr></tfoot>
+      </table>
+    </div>
+
+    <!-- ── PHASE SUMMARY BAR ── -->
+    <div class="phase-summary-bar" style="margin-top:28px">
+      <div class="psb-item">
+        <div class="psb-label" style="color:#b08040">Phase 1 — Footing</div>
+        <div class="psb-value" id="psb-p1">$—</div>
+      </div>
+      <div class="psb-plus">+</div>
+      <div class="psb-item">
+        <div class="psb-label" style="color:var(--green)">Phase 2 — Stem Wall</div>
+        <div class="psb-value" id="psb-p2">$—</div>
+      </div>
+      <div class="psb-plus">+</div>
+      <div class="psb-item">
+        <div class="psb-label" style="color:var(--slab-accent)">Phase 3 — Slab</div>
+        <div class="psb-value" id="psb-p3">$—</div>
+      </div>
+    </div>
+
+    <!-- ── GRAND TOTAL ── -->
+    <div class="grand-total-box">
+      <div class="gt-left">
+        <div class="gt-label">Total Estimated Materials &amp; Labor</div>
+        <div class="gt-sub">All 3 phases combined · includes 10% waste on all quantities</div>
+      </div>
+      <div class="gt-right" id="grand-total">$—</div>
+    </div>
+    <p class="price-note">* Permit fees, excavation, backfill, gravel base, vapor barrier, anchor bolts, and equipment rental not included.<br>* Concrete prices vary by region and season — get 2–3 quotes from local ready-mix suppliers.<br>* Footing and stem wall rebar quantities are split from the combined foundation total shown on the Footing tab.</p>
+
+  </div><!-- /tab-pricing -->
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TAB 4 — REBAR REFERENCE                    -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="tab-reference" class="tab-pane">
+
+    <div style="margin-bottom:24px">
+      <p style="font-size:13px;color:var(--text-dim);line-height:1.8">Live placement diagrams based on your current dimensions. Bar positions, spacing dimensions, and cover distances update as you change inputs on the other tabs. Code-compliant spacing options are listed below each diagram.</p>
+    </div>
+
+    <!-- ── FOOTING PLACEMENT ── -->
+    <div class="ref-section-title">
+      <span class="rst-badge" style="background:rgba(176,128,64,0.18);color:#c8943a;border-color:rgba(176,128,64,0.4)">Phase 1</span>
+      Footing Rebar Placement
+    </div>
+    <div class="ref-two-col">
+      <div class="ref-diagram-card">
+        <div class="rdc-label">Cross-Section — End View</div>
+        <svg id="rd-footing-xsec" viewBox="0 0 340 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block"></svg>
+        <div class="rdc-caption" id="rd-footing-xsec-cap"></div>
+      </div>
+      <div class="ref-diagram-card">
+        <div class="rdc-label">Plan View — Looking Down</div>
+        <svg id="rd-footing-plan" viewBox="0 0 340 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block"></svg>
+        <div class="rdc-caption" id="rd-footing-plan-cap"></div>
+      </div>
+    </div>
+    <div class="ref-notes-card">
+      <div class="rnc-title">Footing Placement Rules &amp; Field Notes</div>
+      <div class="rnc-grid">
+        <div class="rnc-item"><span class="rnc-key">Min. concrete cover</span><span class="rnc-val">3" (cast against earth) · ACI 318-19 §20.6.1</span></div>
+        <div class="rnc-item"><span class="rnc-key">Bar clearance (side)</span><span class="rnc-val">Min. 1½" between bars or footing face</span></div>
+        <div class="rnc-item"><span class="rnc-key">Lap splice length (#4)</span><span class="rnc-val">24" minimum (Class B tension splice)</span></div>
+        <div class="rnc-item"><span class="rnc-key">Corner bars</span><span class="rnc-val">Hook 90° at corners, extend 24" each leg</span></div>
+        <div class="rnc-item"><span class="rnc-key">Dowels to stem wall</span><span class="rnc-val">Match stem wall vertical spacing, embed 12" min into footing</span></div>
+        <div class="rnc-item"><span class="rnc-key">Chairs / supports</span><span class="rnc-val">Use #3 bar chairs or precast blocks to hold bars off ground</span></div>
+      </div>
+    </div>
+
+    <!-- Footing OC options -->
+    <div class="ref-oc-title">Code-Compliant Horizontal Bar Configurations — Footing</div>
+    <div class="oc-table-wrap">
+      <table class="oc-table">
+        <thead><tr>
+          <th>Config</th><th>Bar Size</th><th>Qty</th><th>Spacing</th><th>Cover</th><th>Min Footing Width</th><th>Use Case</th><th>Code Ref</th>
+        </tr></thead>
+        <tbody>
+          <tr class="oc-highlight"><td>★ Your current</td><td id="oc-f-barsize">#4</td><td id="oc-f-qty">2</td><td>—</td><td>3"</td><td id="oc-f-minwidth">—</td><td>Standard residential</td><td>ACI 318 / IRC R403</td></tr>
+          <tr><td>Minimum</td><td>#4</td><td>2</td><td>Symmetric</td><td>3"</td><td>12"</td><td>Light loads, well-drained soil</td><td>IRC R403.1.3</td></tr>
+          <tr><td>Standard</td><td>#4</td><td>2</td><td>Symmetric</td><td>3"</td><td>18"</td><td>Typical 1–2 story residential</td><td>ACI 318-19 §26.6</td></tr>
+          <tr><td>Heavy Load</td><td>#5</td><td>2</td><td>Symmetric</td><td>3"</td><td>18"</td><td>2+ story, heavy soil</td><td>ACI 318-19</td></tr>
+          <tr><td>Wide Footing</td><td>#4</td><td>3</td><td>Equal thirds</td><td>3"</td><td>24"</td><td>Spread footing, soft soil</td><td>ACI 318-19 §13.3</td></tr>
+          <tr><td>Seismic Zone D/E</td><td>#5</td><td>3</td><td>Equal thirds</td><td>3"</td><td>24"</td><td>High seismic, hillside sites</td><td>IBC §1805 / ASCE 7</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── STEM WALL PLACEMENT ── -->
+    <div class="ref-section-title" style="margin-top:40px">
+      <span class="rst-badge" style="background:rgba(90,158,111,0.18);color:var(--green);border-color:rgba(90,158,111,0.4)">Phase 2</span>
+      Stem Wall Rebar Placement
+    </div>
+    <div class="ref-two-col">
+      <div class="ref-diagram-card">
+        <div class="rdc-label">Cross-Section — End View</div>
+        <svg id="rd-wall-xsec" viewBox="0 0 340 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block"></svg>
+        <div class="rdc-caption" id="rd-wall-xsec-cap"></div>
+      </div>
+      <div class="ref-diagram-card">
+        <div class="rdc-label">Elevation View — Side of Wall</div>
+        <svg id="rd-wall-elev" viewBox="0 0 340 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block"></svg>
+        <div class="rdc-caption" id="rd-wall-elev-cap"></div>
+      </div>
+    </div>
+    <div class="ref-notes-card">
+      <div class="rnc-title">Stem Wall Placement Rules &amp; Field Notes</div>
+      <div class="rnc-grid">
+        <div class="rnc-item"><span class="rnc-key">Min. concrete cover</span><span class="rnc-val">2" (formed surfaces exposed to earth) · ACI 318-19 §20.6.1</span></div>
+        <div class="rnc-item"><span class="rnc-key">Vertical bar spacing</span><span class="rnc-val">Max 18" OC (IRC) · Max 48" OC unreinforced zones</span></div>
+        <div class="rnc-item"><span class="rnc-key">Horizontal bar spacing</span><span class="rnc-val">Space evenly; min 2 bars regardless of height</span></div>
+        <div class="rnc-item"><span class="rnc-key">Tie wire</span><span class="rnc-val">Tie every intersection with 16-ga annealed wire</span></div>
+        <div class="rnc-item"><span class="rnc-key">Anchor bolts</span><span class="rnc-val">½" × 10" embed min, ≤6' OC, ≤12" from corners · IRC R403.1.6</span></div>
+        <div class="rnc-item"><span class="rnc-key">Vertical dowel embed</span><span class="rnc-val">12" min into footing, match vertical bar size</span></div>
+      </div>
+    </div>
+
+    <!-- Stem wall OC options -->
+    <div class="ref-oc-title">Code-Compliant Vertical Spacing Options — Stem Wall</div>
+    <div class="oc-table-wrap">
+      <table class="oc-table">
+        <thead><tr>
+          <th>Spacing</th><th>Bar Size</th><th>Horizontal Bars</th><th>Wall Height Range</th><th>Seismic</th><th>Use Case</th><th>Code Ref</th>
+        </tr></thead>
+        <tbody>
+          <tr class="oc-highlight"><td id="oc-w-spacing">★ Your current</td><td>#4</td><td id="oc-w-hbars">—</td><td>Any</td><td>A/B</td><td>Standard residential</td><td>IRC R404</td></tr>
+          <tr><td>48" OC</td><td>#4</td><td>2 min</td><td>Up to 36"</td><td>A only</td><td>Short stem walls, low seismic</td><td>IRC R404.1.2</td></tr>
+          <tr><td>24" OC</td><td>#4</td><td>2–3</td><td>Up to 48"</td><td>A/B</td><td>Standard — most common</td><td>IRC R404.1.2</td></tr>
+          <tr><td>16" OC</td><td>#4</td><td>3–4</td><td>Up to 60"</td><td>B/C</td><td>Taller walls, moderate seismic</td><td>ACI 318-19</td></tr>
+          <tr><td>12" OC</td><td>#5</td><td>4+</td><td>Any</td><td>C/D</td><td>Tall walls, high seismic, hillside</td><td>IBC §1807 / ASCE 7</td></tr>
+          <tr><td>8" OC</td><td>#5</td><td>4+</td><td>Any</td><td>D/E</td><td>Retaining walls, extreme seismic</td><td>ACI 318-19 §18.10</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── SLAB PLACEMENT ── -->
+    <div class="ref-section-title" style="margin-top:40px">
+      <span class="rst-badge" style="background:rgba(122,158,90,0.18);color:var(--slab-accent);border-color:rgba(122,158,90,0.4)">Phase 3</span>
+      Slab Rebar Placement
+    </div>
+    <div class="ref-two-col">
+      <div class="ref-diagram-card" style="flex:0 0 100%;max-width:100%">
+        <div class="rdc-label">Top-Down Plan View — Rebar Grid</div>
+        <svg id="rd-slab-plan" viewBox="0 0 680 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block"></svg>
+        <div class="rdc-caption" id="rd-slab-plan-cap"></div>
+      </div>
+    </div>
+    <div class="ref-two-col" style="margin-top:12px">
+      <div class="ref-diagram-card">
+        <div class="rdc-label">Cross-Section — Slab Edge Detail</div>
+        <svg id="rd-slab-xsec" viewBox="0 0 340 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block"></svg>
+        <div class="rdc-caption" id="rd-slab-xsec-cap"></div>
+      </div>
+      <div class="ref-diagram-card">
+        <div class="rdc-label">Bar Spacing Legend</div>
+        <div id="rd-slab-legend" style="padding:16px 12px;display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+    </div>
+    <div class="ref-notes-card">
+      <div class="rnc-title">Slab Placement Rules &amp; Field Notes</div>
+      <div class="rnc-grid">
+        <div class="rnc-item"><span class="rnc-key">Min. concrete cover</span><span class="rnc-val">¾" (slab not exposed to weather) · ACI 318-19 §20.6.1.3</span></div>
+        <div class="rnc-item"><span class="rnc-key">Typical bar height</span><span class="rnc-val">Mid-depth or upper third; use 1½" bar chairs</span></div>
+        <div class="rnc-item"><span class="rnc-key">Lap splices</span><span class="rnc-val">Min. 18" for #4 bar (Class B), stagger by ≥1.3× lap length</span></div>
+        <div class="rnc-item"><span class="rnc-key">Control joints</span><span class="rnc-val">Every 10–15 ft (≈ 30× slab thickness); cut ¼ slab depth within 24 hrs</span></div>
+        <div class="rnc-item"><span class="rnc-key">WWM placement</span><span class="rnc-val">Upper third of slab; pull up off ground after pour begins, do NOT leave on ground</span></div>
+        <div class="rnc-item"><span class="rnc-key">Start/end bars</span><span class="rnc-val">First and last bar ≤ half the OC spacing from edge</span></div>
+      </div>
+    </div>
+
+    <!-- Slab OC options -->
+    <div class="ref-oc-title">Code-Compliant On-Center Spacing Options — Slab</div>
+    <div class="oc-table-wrap">
+      <table class="oc-table">
+        <thead><tr>
+          <th>Spacing</th><th>Bar Size</th><th>Slab Thickness</th><th>Load Type</th><th>Seismic</th><th>Approx Sticks / 1000 ft²</th><th>Code Ref</th>
+        </tr></thead>
+        <tbody>
+          <tr class="oc-highlight"><td id="oc-s-spacing">★ Your current</td><td id="oc-s-barsize">#4</td><td>Any</td><td>Residential</td><td>Any</td><td id="oc-s-sticks">—</td><td>ACI 318-19</td></tr>
+          <tr><td>24" OC</td><td>#3</td><td>4"</td><td>Light residential</td><td>A/B</td><td>~17</td><td>ACI 318-19 §7.6</td></tr>
+          <tr><td>18" OC</td><td>#4</td><td>4"–5"</td><td>Standard residential</td><td>A/B/C</td><td>~22</td><td>ACI 318-19 §7.6</td></tr>
+          <tr><td>16" OC</td><td>#4</td><td>4"–5"</td><td>Standard / garage</td><td>B/C</td><td>~25</td><td>ACI 318-19</td></tr>
+          <tr><td>12" OC</td><td>#4</td><td>5"–6"</td><td>Heavy vehicles, storage</td><td>C/D</td><td>~33</td><td>ACI 318-19 §7.6.4</td></tr>
+          <tr><td>12" OC</td><td>#5</td><td>6"</td><td>Commercial, high seismic</td><td>D/E</td><td>~33</td><td>IBC §1906 / ACI 318</td></tr>
+          <tr><td>WWM 6×6-W2</td><td>6ga wire</td><td>4"</td><td>Light residential only</td><td>A/B</td><td>N/A</td><td>ASTM A185</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="price-note" style="margin-top:20px">⚠ These tables provide common configurations only. Always verify with your local building department and engineer — seismic design category, soil bearing capacity, frost depth, and structural loads all affect required reinforcement. Diagrams are schematic; not drawn to exact scale.</p>
+
+  </div><!-- /tab-reference -->
+    ⚠ All ORDER quantities include a 10% waste factor.<br>
+    ⚠ Verify rebar spacing and slab thickness with local building code — seismic/frost zones may require changes.<br>
+    ⚠ Interior load-bearing walls, garage openings, and post pockets should be added as cutouts or calculated separately.<br>
+    ⚠ Always confirm with a licensed engineer or your local building department before pouring.
+  </footer>
+</div>
+
+<script>
+// ── TABS ──────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── INLINE OC TOOLTIPS ────────────────────────────────────────
+function toggleTooltip(panelId, btn) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  const isOpen = panel.classList.contains('open');
+  // close all open tooltips first
+  document.querySelectorAll('.oc-tooltip-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.oc-tooltip-btn.active').forEach(b => b.classList.remove('active'));
+  if (!isOpen) {
+    panel.classList.add('open');
+    btn.classList.add('active');
+  }
+}
+
+function applyOC(inputId, value, panelId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  // close tooltip
+  const panel = document.getElementById(panelId);
+  if (panel) panel.classList.remove('open');
+  document.querySelectorAll('.oc-tooltip-btn.active').forEach(b => b.classList.remove('active'));
+  // highlight current in tooltip rows
+  highlightCurrentOC(panelId, value);
+}
+
+function highlightCurrentOC(panelId, value) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  panel.querySelectorAll('.otp-row').forEach(row => {
+    const sp = row.querySelector('.otp-spacing')?.textContent || '';
+    row.classList.toggle('current', sp.startsWith(String(value)));
+  });
+}
+
+// Close tooltips when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.input-card.has-tooltip')) {
+    document.querySelectorAll('.oc-tooltip-panel.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.oc-tooltip-btn.active').forEach(b => b.classList.remove('active'));
+  }
+});
+
+// ── HELPERS ───────────────────────────────────────────────────
+function v(id)       { return parseFloat(document.getElementById(id)?.value) || 0; }
+function set(id, val){ const el = document.getElementById(id); if (el) el.textContent = val; }
+
+// ═════════════════════════════════════════════════════════════
+// FOUNDATION CALCULATOR
+// ═════════════════════════════════════════════════════════════
+['houseLength','houseWidth','footingWidth','footingThick','footingRebar',
+ 'wallWidth','belowGrade','aboveGrade','rebarSpacing','stickLength']
+  .forEach(id => document.getElementById(id).addEventListener('input', calcFoundation));
+
+function calcFoundation() {
+  const L = v('houseLength'), W = v('houseWidth');
+  const fW = v('footingWidth') / 12, fT = v('footingThick') / 12;
+  const fBars = v('footingRebar');
+  const wW = v('wallWidth') / 12;
+  const belowIn = v('belowGrade'), aboveIn = v('aboveGrade');
+  const wallTotalIn = belowIn + aboveIn;
+  const wH = wallTotalIn / 12;
+  const ocIn = v('rebarSpacing'), stick = v('stickLength');
+  const perim = (L + W) * 2;
+
+  set('perimeterDisplay', perim.toFixed(1) + ' ft');
+
+  // concrete
+  const fCuFt = perim * fW * fT, fCuYd = fCuFt / 27;
+  const wCuFt = perim * wW * wH, wCuYd = wCuFt / 27;
+  set('footingCuFt', fCuFt.toFixed(1) + ' cu ft');
+  set('footingCuYd', fCuYd.toFixed(2) + ' yd³');
+  set('wallCuFt',    wCuFt.toFixed(1) + ' cu ft');
+  set('wallCuYd',    wCuYd.toFixed(2) + ' yd³');
+
+  // rebar
+  const ocFt = ocIn / 12, nVert = Math.ceil(perim / ocFt);
+  const fHorizFt = fBars * perim;
+  const dowelLen = fT + wH;
+  const fVertFt  = nVert * dowelLen;
+  const fTotal   = fHorizFt + fVertFt;
+
+  const wHorizBars = Math.max(2, Math.ceil(wallTotalIn / 9));
+  const wHorizFt   = wHorizBars * perim;
+  const wVertFt    = nVert * wH;
+  const wTotal     = wHorizFt + wVertFt;
+
+  set('footingHoriz', fBars + ' runs × ' + perim.toFixed(0) + ' ft = ' + fHorizFt.toFixed(0) + ' ft');
+  set('footingVert',  nVert + ' dowels × ' + (dowelLen * 12).toFixed(0) + '" = ' + fVertFt.toFixed(0) + ' ft');
+  set('footingLinFt', fTotal.toFixed(0) + ' ft');
+  set('wallHoriz',    wHorizBars + ' runs × ' + perim.toFixed(0) + ' ft = ' + wHorizFt.toFixed(0) + ' ft');
+  set('wallVert',     nVert + ' bars × ' + (wH * 12).toFixed(0) + '" = ' + wVertFt.toFixed(0) + ' ft');
+  set('wallLinFt',    wTotal.toFixed(0) + ' ft');
+
+  const totalRebar = (fTotal + wTotal) * 1.10;
+  set('totalRebarFt',  Math.ceil(totalRebar).toLocaleString());
+  set('orderConcrete', Math.ceil((fCuYd + wCuYd) * 1.10));
+  set('orderRebar',    Math.ceil(totalRebar / stick));
+
+  // Store split quantities for pricing tab
+  _footingCuYd = fCuYd;
+  _wallCuYd    = wCuYd;
+  // Split rebar sticks proportionally by linear feet
+  const fRebarProp = fTotal / (fTotal + wTotal || 1);
+  const wRebarProp = wTotal / (fTotal + wTotal || 1);
+  _footingRebarSticks = Math.ceil((fTotal * 1.10) / stick);
+  _wallRebarSticks    = Math.ceil((wTotal * 1.10) / stick);
+
+  drawFoundDiagram(fW * 12, fT * 12, wW * 12, belowIn, aboveIn, fBars, wHorizBars);
+  calcPricing();
+}
+
+function drawFoundDiagram(fWin, fTin, wWin, belowIn, aboveIn, fBars, wBars) {
+  const svg = document.getElementById('fDiagram');
+  const vw = 500, vh = 260;
+  const maxH = fTin + belowIn + aboveIn;
+  const scale = Math.min((vh - 60) / maxH, (vw * 0.4) / fWin);
+  const cx = vw / 2;
+  const fW = fWin * scale, fH = fTin * scale, wW = wWin * scale;
+  const belowH = belowIn * scale, aboveH = aboveIn * scale;
+  const totalH = aboveH + belowH + fH;
+  const topY = (vh - totalH) / 2;
+  const footY = topY + aboveH + belowH;
+  const wallX = cx - wW / 2, footX = cx - fW / 2;
+  const gY = topY + aboveH;
+  const dc = '#6fa3c8', rc = '#4a7fa5';
+  const lf = `font-family="IBM Plex Mono,monospace" font-size="9" fill="${dc}"`;
+  let h = '';
+
+  h += `<rect x="0" y="${gY}" width="${vw}" height="${vh-gY}" fill="rgba(100,80,50,0.12)"/>`;
+  h += `<line x1="0" y1="${gY}" x2="${vw}" y2="${gY}" stroke="#8a7a5a" stroke-width="1.5" stroke-dasharray="6,4"/>`;
+  h += `<text x="12" y="${gY-5}" fill="#8a7a5a" font-family="IBM Plex Mono,monospace" font-size="9" letter-spacing="1">GRADE</text>`;
+  h += `<rect x="${footX}" y="${footY}" width="${fW}" height="${fH}" fill="#b5a080" stroke="#8a7060" stroke-width="1.5" rx="1"/>`;
+  h += `<rect x="${wallX}" y="${topY}" width="${wW}" height="${belowH+aboveH}" fill="#c0b090" stroke="#8a7060" stroke-width="1.5" rx="1"/>`;
+
+  // ── Footing horizontal bars (cross-section dots) ──
+  for (let i = 1; i <= fBars; i++) {
+    const rx = footX + fW / (fBars + 1) * i;
+    h += `<circle cx="${rx}" cy="${footY+fH*0.75}" r="3.5" fill="${rc}" stroke="#2a5070" stroke-width="1.2"/>`;
+  }
+
+  // ── Vertical dowels: run from bottom of footing up through full stem wall ──
+  // Show 3 dowels spaced evenly across wall width (left face, centre, right face)
+  const coverPx = 2 * scale; // 2" cover in px
+  const dowelPositions = [wallX + coverPx + 3, cx, wallX + wW - coverPx - 3];
+  const dowelColor = '#7ab8d8';
+  dowelPositions.forEach(dx => {
+    // dowel line: footing bottom → top of stem wall
+    h += `<line x1="${dx}" y1="${footY+fH-2}" x2="${dx}" y2="${topY+4}"
+            stroke="${dowelColor}" stroke-width="2" stroke-dasharray="5,3"/>`;
+    // dot at footing level (embed point)
+    h += `<circle cx="${dx}" cy="${footY+fH*0.25}" r="3" fill="${dowelColor}" stroke="#1a4060" stroke-width="1"/>`;
+    // small hook tick at top
+    h += `<line x1="${dx}" y1="${topY+4}" x2="${dx+6}" y2="${topY+4}"
+            stroke="${dowelColor}" stroke-width="2"/>`;
+  });
+
+  // ── Stem wall horizontal bars ──
+  for (let i = 1; i <= wBars; i++) {
+    const ry = topY + (belowH + aboveH) / (wBars + 1) * i;
+    h += `<circle cx="${wallX+6}" cy="${ry}" r="3" fill="${rc}" stroke="#2a5070" stroke-width="1"/>`;
+    h += `<circle cx="${wallX+wW-6}" cy="${ry}" r="3" fill="${rc}" stroke="#2a5070" stroke-width="1"/>`;
+  }
+
+  // ── Legend ──
+  const legX = footX + fW + 28, legY = footY + 10;
+  h += `<circle cx="${legX}" cy="${legY}" r="4" fill="${rc}" stroke="#2a5070" stroke-width="1"/>`;
+  h += `<text x="${legX+8}" y="${legY+4}" ${lf} font-size="8">Horiz. bar</text>`;
+  h += `<line x1="${legX-4}" y1="${legY+16}" x2="${legX+4}" y2="${legY+16}" stroke="${dowelColor}" stroke-width="2" stroke-dasharray="4,2"/>`;
+  h += `<text x="${legX+8}" y="${legY+20}" ${lf} font-size="8">Vert. dowel</text>`;
+
+  const aY = footY + fH + 18;
+  h += `<line x1="${footX}" y1="${aY}" x2="${footX+fW}" y2="${aY}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${footX}" y1="${aY-4}" x2="${footX}" y2="${aY+4}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${footX+fW}" y1="${aY-4}" x2="${footX+fW}" y2="${aY+4}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<text x="${cx}" y="${aY+12}" text-anchor="middle" ${lf}>${fWin}" FOOTING</text>`;
+
+  const wAY = topY - 14;
+  h += `<line x1="${wallX}" y1="${wAY}" x2="${wallX+wW}" y2="${wAY}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${wallX}" y1="${wAY-4}" x2="${wallX}" y2="${wAY+4}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${wallX+wW}" y1="${wAY-4}" x2="${wallX+wW}" y2="${wAY+4}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<text x="${cx}" y="${wAY-3}" text-anchor="middle" ${lf}>${wWin}" WALL</text>`;
+
+  const rx3 = footX + fW + 16;
+  h += `<line x1="${rx3}" y1="${topY}" x2="${rx3}" y2="${gY}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${rx3-3}" y1="${topY}" x2="${rx3+3}" y2="${topY}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${rx3-3}" y1="${gY}" x2="${rx3+3}" y2="${gY}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<text x="${rx3+5}" y="${topY+aboveH/2+3}" ${lf}>${aboveIn}"↕</text>`;
+  h += `<line x1="${rx3}" y1="${gY}" x2="${rx3}" y2="${footY}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${rx3-3}" y1="${footY}" x2="${rx3+3}" y2="${footY}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<text x="${rx3+5}" y="${gY+belowH/2+3}" ${lf}>${belowIn}"↕</text>`;
+
+  const lx2 = footX - 16;
+  h += `<line x1="${lx2}" y1="${footY}" x2="${lx2}" y2="${footY+fH}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${lx2-3}" y1="${footY}" x2="${lx2+3}" y2="${footY}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${lx2-3}" y1="${footY+fH}" x2="${lx2+3}" y2="${footY+fH}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<text x="${lx2-6}" y="${footY+fH/2+3}" text-anchor="end" ${lf}>${fTin}"</text>`;
+
+  svg.innerHTML = h;
+}
+
+
+// ═════════════════════════════════════════════════════════════
+// SLAB CALCULATOR
+// ═════════════════════════════════════════════════════════════
+let cutouts = [], cutId = 0;
+
+['slabLength','slabWidth','slabThick','edgeWidth','edgeDepth','edgeRebarRuns',
+ 'slabRebarOC','slabStickLen','wwmSheetWidth']
+  .forEach(id => document.getElementById(id)?.addEventListener('input', calcSlab));
+['slabRebarSize','slabRebarLayers','edgeRebarSize','wwmSize']
+  .forEach(id => document.getElementById(id)?.addEventListener('change', calcSlab));
+
+function toggleEdge() {
+  const on = document.getElementById('hasThickEdge').checked;
+  document.getElementById('thickEdgeInputs').style.display = on ? 'block' : 'none';
+  document.getElementById('edgeResultBlock').style.opacity = on ? '1' : '0.35';
+  calcSlab();
+}
+
+function updateReinfUI() {
+  const t = document.querySelector('input[name="reinfType"]:checked').value;
+  const showRebar = t === 'rebar' || t === 'both';
+  const showWwm   = t === 'wwm'   || t === 'both';
+  document.getElementById('rebarGridInputs').style.display   = showRebar ? 'block' : 'none';
+  document.getElementById('wwmInputs').style.display         = showWwm   ? 'block' : 'none';
+  document.getElementById('rebarResultBlock').style.display  = showRebar ? 'block' : 'none';
+  document.getElementById('wwmResultBlock').style.display    = showWwm   ? 'block' : 'none';
+  document.getElementById('sOrderRebarItem').style.display   = showRebar ? 'block' : 'none';
+  document.getElementById('sOrderWwmItem').style.display     = showWwm   ? 'block' : 'none';
+  calcSlab();
+}
+
+function addCutout() {
+  const id = ++cutId;
+  cutouts.push(id);
+  const list = document.getElementById('cutoutList');
+  const div  = document.createElement('div');
+  div.className = 'cutout-row';
+  div.id = 'cutout-' + id;
+  div.innerHTML = `
+    <div><div class="z-label">Length (ft)</div><input type="number" id="cx-l-${id}" value="0" step="0.5" min="0" oninput="calcSlab()"></div>
+    <div><div class="z-label">Width (ft)</div><input type="number" id="cx-w-${id}" value="0" step="0.5" min="0" oninput="calcSlab()"></div>
+    <div><div class="z-label">Description</div><input type="text" id="cx-n-${id}" placeholder="e.g. Garage door" style="font-size:13px;font-weight:400"></div>
+    <button class="btn-remove" onclick="removeCutout(${id})">✕</button>`;
+  list.appendChild(div);
+}
+
+function removeCutout(id) {
+  cutouts = cutouts.filter(c => c !== id);
+  document.getElementById('cutout-' + id)?.remove();
+  calcSlab();
+}
+
+function calcSlab() {
+  const SL = v('slabLength'), SW = v('slabWidth');
+  const thickIn = v('slabThick'), thickFt = thickIn / 12;
+  const gross = SL * SW;
+
+  let cutArea = 0;
+  cutouts.forEach(id => { cutArea += v('cx-l-' + id) * v('cx-w-' + id); });
+  const net = Math.max(0, gross - cutArea);
+
+  set('slabGrossArea', gross.toFixed(1) + ' ft²');
+  set('slabCutArea',   cutArea > 0 ? '−' + cutArea.toFixed(1) + ' ft²' : '0 ft²');
+  set('slabNetArea',   net.toFixed(1) + ' ft²');
+  set('sConcArea',     net.toFixed(1) + ' ft²');
+
+  // Main slab concrete
+  const sCuFt = net * thickFt, sCuYd = sCuFt / 27;
+  set('sConcCuFt', sCuFt.toFixed(1) + ' cu ft');
+  set('sConcCuYd', sCuYd.toFixed(2) + ' yd³');
+
+  // Thickened edge
+  const hasEdge  = document.getElementById('hasThickEdge').checked;
+  const edgePerim = (SL + SW) * 2;
+  let edgeCuYd = 0, edgeRebarLF = 0;
+  if (hasEdge) {
+    const eW  = v('edgeWidth') / 12;
+    const eD  = v('edgeDepth') / 12;
+    const extraD = Math.max(0, eD - thickFt);
+    const eCuFt  = edgePerim * eW * extraD;
+    edgeCuYd = eCuFt / 27;
+    set('sEdgePerim', edgePerim.toFixed(1) + ' ft');
+    set('sEdgeCuFt',  eCuFt.toFixed(1) + ' cu ft');
+    set('sEdgeCuYd',  edgeCuYd.toFixed(2) + ' yd³');
+    edgeRebarLF = v('edgeRebarRuns') * edgePerim;
+  } else {
+    set('sEdgePerim', '—'); set('sEdgeCuFt', '—'); set('sEdgeCuYd', '—');
+  }
+
+  const totalCuYd = sCuYd + edgeCuYd;
+  set('sOrderConcrete', Math.ceil(totalCuYd * 1.10));
+
+  // Rebar grid
+  const type = document.querySelector('input[name="reinfType"]:checked').value;
+  const ocIn = v('slabRebarOC'), ocFt = ocIn / 12;
+  const stick = v('slabStickLen');
+  const layers = v('slabRebarLayers') || 1;
+
+  if (type === 'rebar' || type === 'both') {
+    const bLong  = Math.ceil(SW / ocFt) + 1;   // bars spanning across width, running along length
+    const bShort = Math.ceil(SL / ocFt) + 1;   // bars spanning across length, running along width
+    const lfMat  = (bLong * SL + bShort * SW) * layers;
+    const lfEdge = edgeRebarLF;
+    const lfTotal = (lfMat + lfEdge) * 1.10;
+    const sticks  = Math.ceil(lfTotal / stick);
+
+    set('sRebarLong',   bLong  + ' bars × ' + SL.toFixed(0) + ' ft');
+    set('sRebarShort',  bShort + ' bars × ' + SW.toFixed(0) + ' ft');
+    set('sRebarLF',     Math.ceil(lfMat + lfEdge).toLocaleString() + ' ft');
+    set('sRebarSticks', sticks + ' sticks');
+    set('sOrderRebar',  sticks);
+  }
+
+  // WWM
+  if (type === 'wwm' || type === 'both') {
+    const sheetW = v('wwmSheetWidth') || 5;
+    const sheetH = 10;
+    const sheetSqFt = sheetW * sheetH;
+    const needed = net * 1.05;
+    const sheets = Math.ceil(needed / sheetSqFt);
+    set('sWwmArea',     net.toFixed(1) + ' ft²');
+    set('sWwmCoverage', needed.toFixed(1) + ' ft²');
+    set('sWwmSheets',   sheets + ' sheets');
+    set('sOrderWwm',    sheets);
+  }
+
+  drawSlabDiagram(SL, SW, thickIn,
+    hasEdge ? v('edgeDepth') : 0,
+    hasEdge ? v('edgeWidth') : 0,
+    v('slabRebarOC'), type);
+  calcPricing();
+}
+
+function drawSlabDiagram(SL, SW, thickIn, edgeDin, edgeWin, ocIn, type) {
+  const svg = document.getElementById('sDiagram');
+  const vw = 500, vh = 200;
+  const dc = '#7a9e5a', rc = '#4a7fa5';
+  const lf = `font-family="IBM Plex Mono,monospace" font-size="9" fill="${dc}"`;
+
+  const maxDepth = Math.max(thickIn, edgeDin || thickIn);
+  const scaleY = Math.min((vh - 70) / maxDepth, 5);
+  const displayW = vw * 0.62;
+  const startX = (vw - displayW) / 2;
+  const endX = startX + displayW;
+  const topY = 38;
+  const cx = vw / 2;
+
+  const sH = thickIn * scaleY;
+  const eH = edgeDin * scaleY;
+  const eW = edgeWin > 0 ? Math.min(edgeWin * scaleY * 0.7, 52) : 0;
+
+  let h = '';
+
+  // ground
+  h += `<rect x="0" y="${topY+sH}" width="${vw}" height="${vh-topY-sH}" fill="rgba(100,80,50,0.10)"/>`;
+  // grade line
+  h += `<line x1="0" y1="${topY}" x2="${vw}" y2="${topY}" stroke="#8a7a5a" stroke-width="1" stroke-dasharray="5,4"/>`;
+  h += `<text x="12" y="${topY-5}" fill="#8a7a5a" font-family="IBM Plex Mono,monospace" font-size="9" letter-spacing="1">GRADE</text>`;
+
+  // main slab
+  h += `<rect x="${startX}" y="${topY}" width="${displayW}" height="${sH}" fill="#c0b090" stroke="#8a7060" stroke-width="1.5"/>`;
+
+  // thickened edges
+  if (edgeDin > 0 && eW > 0) {
+    h += `<rect x="${startX-eW}" y="${topY}" width="${eW}" height="${eH}" fill="#b0a070" stroke="#8a7060" stroke-width="1.5"/>`;
+    h += `<rect x="${endX}"      y="${topY}" width="${eW}" height="${eH}" fill="#b0a070" stroke="#8a7060" stroke-width="1.5"/>`;
+
+    // edge depth dim
+    const edx = endX + eW + 14;
+    h += `<line x1="${edx}" y1="${topY}" x2="${edx}" y2="${topY+eH}" stroke="${dc}" stroke-width="1"/>`;
+    h += `<line x1="${edx-3}" y1="${topY}" x2="${edx+3}" y2="${topY}" stroke="${dc}" stroke-width="1"/>`;
+    h += `<line x1="${edx-3}" y1="${topY+eH}" x2="${edx+3}" y2="${topY+eH}" stroke="${dc}" stroke-width="1"/>`;
+    h += `<text x="${edx+5}" y="${topY+eH/2+3}" ${lf}>${edgeDin}"</text>`;
+
+    // edge width dim
+    const edwy = topY + eH + 16;
+    h += `<line x1="${startX-eW}" y1="${edwy}" x2="${startX}" y2="${edwy}" stroke="${dc}" stroke-width="1"/>`;
+    h += `<line x1="${startX-eW}" y1="${edwy-4}" x2="${startX-eW}" y2="${edwy+4}" stroke="${dc}" stroke-width="1"/>`;
+    h += `<line x1="${startX}" y1="${edwy-4}" x2="${startX}" y2="${edwy+4}" stroke="${dc}" stroke-width="1"/>`;
+    h += `<text x="${startX-eW/2}" y="${edwy+13}" text-anchor="middle" ${lf}>${edgeWin}"</text>`;
+  }
+
+  // rebar dots in slab
+  if (type === 'rebar' || type === 'both') {
+    const ocPx = Math.max(ocIn * scaleY * 0.55, 18);
+    const ry = topY + sH * 0.42;
+    let x = startX + ocPx;
+    while (x < endX - 6) {
+      h += `<circle cx="${x}" cy="${ry}" r="3" fill="${rc}" stroke="#2a5070" stroke-width="1"/>`;
+      x += ocPx;
+    }
+  }
+
+  // WWM dashes
+  if (type === 'wwm' || type === 'both') {
+    const wy = topY + sH * 0.6;
+    h += `<line x1="${startX+8}" y1="${wy}" x2="${endX-8}" y2="${wy}" stroke="${dc}" stroke-width="2" stroke-dasharray="10,6" opacity="0.75"/>`;
+  }
+
+  // slab thickness dim (left)
+  const ldx = startX - (eW || 0) - 14;
+  h += `<line x1="${ldx}" y1="${topY}" x2="${ldx}" y2="${topY+sH}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${ldx-3}" y1="${topY}" x2="${ldx+3}" y2="${topY}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${ldx-3}" y1="${topY+sH}" x2="${ldx+3}" y2="${topY+sH}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<text x="${ldx-6}" y="${topY+sH/2+3}" text-anchor="end" ${lf}>${thickIn}"</text>`;
+
+  // slab width label top
+  h += `<line x1="${startX}" y1="${topY-12}" x2="${endX}" y2="${topY-12}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${startX}" y1="${topY-16}" x2="${startX}" y2="${topY-8}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<line x1="${endX}" y1="${topY-16}" x2="${endX}" y2="${topY-8}" stroke="${dc}" stroke-width="1"/>`;
+  h += `<text x="${cx}" y="${topY-15}" text-anchor="middle" ${lf}>${SL.toFixed(0)}' × ${SW.toFixed(0)}' SLAB</text>`;
+
+  svg.innerHTML = h;
+}
+
+// ═════════════════════════════════════════════════════════════
+// PRICING CALCULATOR
+// ═════════════════════════════════════════════════════════════
+
+// Shared state so pricing can read computed quantities
+let _foundQty = { conc: 0, rebar: 0, perim: 0 };
+let _slabQty  = { conc: 0, rebar: 0, wwm: 0, area: 0, hasRebar: true, hasWwm: false };
+
+// Store split quantities from calcFoundation for use in pricing
+let _footingCuYd = 0, _wallCuYd = 0;
+let _footingRebarSticks = 0, _wallRebarSticks = 0;
+
+function fmt$(n) {
+  if (!n && n !== 0) return '—';
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function calcPricing() {
+  // ── Pull split quantities stored by calcFoundation ──────────
+  const perim   = parseFloat(document.getElementById('perimeterDisplay')?.textContent) || 0;
+  const stick   = v('stickLength') || 20;
+
+  // Footing concrete & rebar (split from combined foundation calc)
+  const fCuYd   = _footingCuYd;
+  const wCuYd   = _wallCuYd;
+  const fSticks = _footingRebarSticks;
+  const wSticks = _wallRebarSticks;
+
+  // Phase 3 — slab
+  const sConc  = parseInt(document.getElementById('sOrderConcrete')?.textContent) || 0;
+  const sRebar = parseInt(document.getElementById('sOrderRebar')?.textContent)     || 0;
+  const sWwm   = parseInt(document.getElementById('sOrderWwm')?.textContent)       || 0;
+  const sArea  = parseFloat(document.getElementById('slabNetArea')?.textContent)   || 0;
+  const reinfType = document.querySelector('input[name="reinfType"]:checked')?.value || 'rebar';
+  const showRebar = reinfType === 'rebar' || reinfType === 'both';
+  const showWwm   = reinfType === 'wwm'   || reinfType === 'both';
+
+  // ── Phase 1 quantities ──────────────────────────────────────
+  const p1ConcQty  = Math.ceil(fCuYd * 1.10);
+  const p1RebarQty = fSticks;
+  const p1LaborQty = perim;
+  document.getElementById('p1-conc-qty').textContent  = p1ConcQty  + ' yd³';
+  document.getElementById('p1-rebar-qty').textContent = p1RebarQty + ' sticks';
+  document.getElementById('p1-labor-qty').textContent = p1LaborQty.toFixed(0) + ' ln ft';
+
+  // ── Phase 2 quantities ──────────────────────────────────────
+  const p2ConcQty  = Math.ceil(wCuYd * 1.10);
+  const p2RebarQty = wSticks;
+  const p2LaborQty = perim;
+  document.getElementById('p2-conc-qty').textContent  = p2ConcQty  + ' yd³';
+  document.getElementById('p2-rebar-qty').textContent = p2RebarQty + ' sticks';
+  document.getElementById('p2-labor-qty').textContent = p2LaborQty.toFixed(0) + ' ln ft';
+
+  // ── Phase 3 quantities ──────────────────────────────────────
+  document.getElementById('p3-conc-qty').textContent  = sConc + ' yd³';
+  document.getElementById('p3-rebar-qty').textContent = showRebar ? sRebar + ' sticks' : '—';
+  document.getElementById('p3-wwm-qty').textContent   = showWwm   ? sWwm  + ' sheets'  : '—';
+  document.getElementById('p3-labor-qty').textContent = sArea.toFixed(0) + ' ft²';
+  document.getElementById('p3-rebar-row').style.opacity = showRebar ? '1' : '0.35';
+  document.getElementById('p3-wwm-row').style.opacity   = showWwm   ? '1' : '0.35';
+
+  // ── Read prices ─────────────────────────────────────────────
+  const p1CP = parseFloat(document.getElementById('p1-conc-price')?.value)  || 0;
+  const p1RP = parseFloat(document.getElementById('p1-rebar-price')?.value) || 0;
+  const p1LP = parseFloat(document.getElementById('p1-labor-price')?.value) || 0;
+
+  const p2CP = parseFloat(document.getElementById('p2-conc-price')?.value)  || 0;
+  const p2RP = parseFloat(document.getElementById('p2-rebar-price')?.value) || 0;
+  const p2LP = parseFloat(document.getElementById('p2-labor-price')?.value) || 0;
+
+  const p3CP = parseFloat(document.getElementById('p3-conc-price')?.value)  || 0;
+  const p3RP = parseFloat(document.getElementById('p3-rebar-price')?.value) || 0;
+  const p3WP = parseFloat(document.getElementById('p3-wwm-price')?.value)   || 0;
+  const p3LP = parseFloat(document.getElementById('p3-labor-price')?.value) || 0;
+
+  // ── Line totals ─────────────────────────────────────────────
+  const p1CT = p1ConcQty  * p1CP;
+  const p1RT = p1RebarQty * p1RP;
+  const p1LT = p1LaborQty * p1LP;
+  const p1Sub = p1CT + p1RT + p1LT;
+
+  const p2CT = p2ConcQty  * p2CP;
+  const p2RT = p2RebarQty * p2RP;
+  const p2LT = p2LaborQty * p2LP;
+  const p2Sub = p2CT + p2RT + p2LT;
+
+  const p3CT = sConc  * p3CP;
+  const p3RT = showRebar ? sRebar * p3RP : 0;
+  const p3WT = showWwm   ? sWwm   * p3WP : 0;
+  const p3LT = sArea  * p3LP;
+  const p3Sub = p3CT + p3RT + p3WT + p3LT;
+
+  const grand = p1Sub + p2Sub + p3Sub;
+
+  // ── Display helper ──────────────────────────────────────────
+  const show = (id, val, active) => {
+    const e = document.getElementById(id);
+    if (!e) return;
+    e.textContent = active ? fmt$(val) : '—';
+    e.className   = 'pt-total' + (active ? '' : ' dim');
+  };
+
+  show('p1-conc-total',  p1CT,  p1CP > 0);
+  show('p1-rebar-total', p1RT,  p1RP > 0);
+  show('p1-labor-total', p1LT,  p1LP > 0);
+  show('p2-conc-total',  p2CT,  p2CP > 0);
+  show('p2-rebar-total', p2RT,  p2RP > 0);
+  show('p2-labor-total', p2LT,  p2LP > 0);
+  show('p3-conc-total',  p3CT,  p3CP > 0);
+  show('p3-rebar-total', p3RT,  p3RP > 0 && showRebar);
+  show('p3-wwm-total',   p3WT,  p3WP > 0 && showWwm);
+  show('p3-labor-total', p3LT,  p3LP > 0);
+
+  const p1Has = p1CP > 0 || p1RP > 0 || p1LP > 0;
+  const p2Has = p2CP > 0 || p2RP > 0 || p2LP > 0;
+  const p3Has = p3CP > 0 || p3RP > 0 || p3WP > 0 || p3LP > 0;
+
+  document.getElementById('p1-subtotal').textContent = p1Has ? fmt$(p1Sub) : '—';
+  document.getElementById('p2-subtotal').textContent = p2Has ? fmt$(p2Sub) : '—';
+  document.getElementById('p3-subtotal').textContent = p3Has ? fmt$(p3Sub) : '—';
+
+  document.getElementById('psb-p1').textContent = p1Has ? fmt$(p1Sub) : '$—';
+  document.getElementById('psb-p2').textContent = p2Has ? fmt$(p2Sub) : '$—';
+  document.getElementById('psb-p3').textContent = p3Has ? fmt$(p3Sub) : '$—';
+
+  document.getElementById('grand-total').textContent = (p1Has || p2Has || p3Has) ? fmt$(grand) : '$—';
+}
+
+// ═════════════════════════════════════════════════════════════
+// REBAR REFERENCE DIAGRAMS
+// ═════════════════════════════════════════════════════════════
+function drawRebarDiagrams() {
+  const fWin   = v('footingWidth');   // inches
+  const fTin   = v('footingThick');   // inches
+  const fBars  = v('footingRebar') || 2;
+  const wWin   = v('wallWidth');      // inches
+  const belowIn= v('belowGrade');
+  const aboveIn= v('aboveGrade');
+  const wallIn = belowIn + aboveIn;
+  const ocIn   = v('rebarSpacing');
+  const slabL  = v('slabLength');
+  const slabW  = v('slabWidth');
+  const slabTin= v('slabThick');
+  const slabOC = v('slabRebarOC');
+  const wHorizBars = Math.max(2, Math.ceil(wallIn / 9));
+  const stick  = v('stickLength') || 20;
+
+  const rc = '#4a7fa5', dc = '#6fa3c8', cc = '#c8b89a', cc2='#b0a070', ac='#e8a040', gc='#5a9e6f';
+  const mf = `font-family="IBM Plex Mono,monospace"`;
+
+  // ─── 1. FOOTING CROSS-SECTION ────────────────────────────
+  (function() {
+    const svg = document.getElementById('rd-footing-xsec');
+    if (!svg) return;
+    const vw=340, vh=200, cover=3, barD=0.5; // all inches
+    // scale so footing fits nicely
+    const scX = Math.min((vw-80)/fWin, 5);
+    const scY = Math.min((vh-80)/fTin, 8);
+    const sc  = Math.min(scX, scY, 4.5);
+    const fW  = fWin*sc, fH = fTin*sc;
+    const ox  = (vw-fW)/2, oy = (vh-fH)/2;
+    let h='';
+
+    // concrete body
+    h+=`<rect x="${ox}" y="${oy}" width="${fW}" height="${fH}" fill="${cc}" stroke="#8a7060" stroke-width="1.5" rx="1"/>`;
+
+    // cover lines
+    const cv = cover*sc;
+    h+=`<rect x="${ox+cv}" y="${oy+cv}" width="${fW-2*cv}" height="${fH-2*cv}" fill="none" stroke="${ac}" stroke-width="0.6" stroke-dasharray="4,3" opacity="0.5"/>`;
+
+    // rebar bars (dots in cross-section)
+    const barR = Math.max(2.5, barD*sc*0.8);
+    const usable = fW - 2*cv;
+    for (let i=0;i<fBars;i++) {
+      const bx = ox + cv + (usable/(fBars-1||1))*i;
+      const by = oy + fH - cv - barR;
+      if(fBars===1) {
+        h+=`<circle cx="${ox+fW/2}" cy="${by}" r="${barR}" fill="${rc}" stroke="#2a5070" stroke-width="1.2"/>`;
+      } else {
+        h+=`<circle cx="${bx}" cy="${by}" r="${barR}" fill="${rc}" stroke="#2a5070" stroke-width="1.2"/>`;
+      }
+    }
+
+    // dimension: width
+    const dimY = oy+fH+22;
+    h+=`<line x1="${ox}" y1="${dimY}" x2="${ox+fW}" y2="${dimY}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${ox}" y1="${dimY-4}" x2="${ox}" y2="${dimY+4}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${ox+fW}" y1="${dimY-4}" x2="${ox+fW}" y2="${dimY+4}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<text x="${ox+fW/2}" y="${dimY+13}" text-anchor="middle" ${mf} font-size="10" fill="${dc}">${fWin}" wide</text>`;
+
+    // dimension: height (left side)
+    const ldx=ox-18;
+    h+=`<line x1="${ldx}" y1="${oy}" x2="${ldx}" y2="${oy+fH}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${ldx-3}" y1="${oy}" x2="${ldx+3}" y2="${oy}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${ldx-3}" y1="${oy+fH}" x2="${ldx+3}" y2="${oy+fH}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<text x="${ldx-5}" y="${oy+fH/2+4}" text-anchor="end" ${mf} font-size="10" fill="${dc}">${fTin}"</text>`;
+
+    // cover callout
+    h+=`<line x1="${ox}" y1="${oy+fH-cv}" x2="${ox+cv}" y2="${oy+fH-cv}" stroke="${ac}" stroke-width="0.8" stroke-dasharray="3,2"/>`;
+    h+=`<text x="${ox+cv+3}" y="${oy+fH-cv-3}" ${mf} font-size="9" fill="${ac}">3" cover</text>`;
+
+    // bar spacing label
+    if(fBars>1) {
+      const bx0 = ox+cv, bx1 = ox+cv+usable/(fBars-1);
+      const sy = oy+fH-cv*2-12;
+      h+=`<line x1="${bx0}" y1="${sy}" x2="${bx1}" y2="${sy}" stroke="${dc}" stroke-width="0.8" stroke-dasharray="3,2"/>`;
+      const spIn = (fWin-2*cover)/(fBars-1);
+      h+=`<text x="${(bx0+bx1)/2}" y="${sy-4}" text-anchor="middle" ${mf} font-size="9" fill="${dc}">${spIn.toFixed(1)}" spacing</text>`;
+    }
+
+    svg.innerHTML=h;
+    document.getElementById('rd-footing-xsec-cap').textContent =
+      `${fBars} × #${v('footingRebar')||4} bars · ${fWin}" wide × ${fTin}" deep · 3" min cover all sides`;
+  })();
+
+  // ─── 2. FOOTING PLAN VIEW ────────────────────────────────
+  (function() {
+    const svg = document.getElementById('rd-footing-plan');
+    if (!svg) return;
+    const vw=340, vh=240;
+
+    // Always show 4 full OC bays — scale driven by OC spacing, not house size
+    const baysToShow = 4;
+    const totalDisplayIn = fWin + ocIn * (baysToShow + 0.5); // corner width + 4 bays
+    const sc = Math.min(
+      (vw - 60) / totalDisplayIn,   // fit horizontally
+      (vh - 80) / (fWin * 2.8),     // keep footing width readable
+      5.0                            // hard cap so small OC doesn't zoom insane
+    );
+
+    const fWpx   = fWin * sc;
+    const ocPx   = ocIn  * sc;
+    const segHpx = fWpx + ocPx * (baysToShow + 0.5);   // horizontal leg
+    const segVpx = fWpx + ocPx * (baysToShow * 0.6);   // vertical leg (shorter)
+    const ox = 32, oy = 36;
+    const cover  = 3 * sc;
+    const usable = fWpx - 2 * cover;
+    const dowelColor = '#7ab8d8';
+    let h = '';
+
+    // ── Concrete bodies ──────────────────────────────────────
+    h += `<rect x="${ox}" y="${oy}" width="${segHpx}" height="${fWpx}"
+            fill="${cc}" stroke="#8a7060" stroke-width="1.5"/>`;
+    h += `<rect x="${ox}" y="${oy}" width="${fWpx}" height="${segVpx}"
+            fill="${cc2}" stroke="#8a7060" stroke-width="1.5"/>`;
+
+    // ── Longitudinal rebar — horizontal leg ──────────────────
+    for (let i = 0; i < fBars; i++) {
+      const barY = oy + cover + (fBars === 1 ? usable/2 : usable/(fBars-1)*i);
+      h += `<line x1="${ox+fWpx+2}" y1="${barY}" x2="${ox+segHpx-4}" y2="${barY}"
+              stroke="${rc}" stroke-width="2.5"/>`;
+    }
+
+    // ── Longitudinal rebar — vertical leg ────────────────────
+    for (let i = 0; i < fBars; i++) {
+      const barX = ox + cover + (fBars === 1 ? usable/2 : usable/(fBars-1)*i);
+      h += `<line x1="${barX}" y1="${oy+fWpx+2}" x2="${barX}" y2="${oy+segVpx-4}"
+              stroke="${rc}" stroke-width="2.5"/>`;
+    }
+
+    // ── Vertical dowels — horizontal leg (circles = looking down) ──
+    const dowelCenterY = oy + fWpx / 2;
+    let dx = ox + fWpx + ocPx;   // first dowel 1 OC from corner
+    let dowelCountH = 0;
+    while (dx <= ox + segHpx - 4) {
+      h += `<circle cx="${dx}" cy="${dowelCenterY}" r="5"
+              fill="${dowelColor}" stroke="#1a4060" stroke-width="1.5"/>`;
+      // OC dimension callout between first two dowels
+      if (dowelCountH === 0) {
+        const nx = dx + ocPx;
+        const dimY = oy + fWpx + 12;
+        h += `<line x1="${dx}" y1="${dimY}" x2="${nx}" y2="${dimY}"
+                stroke="${dowelColor}" stroke-width="1"/>`;
+        h += `<line x1="${dx}"  y1="${dimY-4}" x2="${dx}"  y2="${dimY+4}" stroke="${dowelColor}" stroke-width="1"/>`;
+        h += `<line x1="${nx}" y1="${dimY-4}" x2="${nx}" y2="${dimY+4}" stroke="${dowelColor}" stroke-width="1"/>`;
+        h += `<text x="${(dx+nx)/2}" y="${dimY+13}" text-anchor="middle"
+                ${mf} font-size="10" fill="${dowelColor}">${ocIn}" OC</text>`;
+      }
+      dx += ocPx;
+      dowelCountH++;
+    }
+
+    // ── Vertical dowels — vertical leg ───────────────────────
+    const dowelCenterX = ox + fWpx / 2;
+    let dy = oy + fWpx + ocPx;
+    while (dy <= oy + segVpx - 4) {
+      h += `<circle cx="${dowelCenterX}" cy="${dy}" r="5"
+              fill="${dowelColor}" stroke="#1a4060" stroke-width="1.5"/>`;
+      dy += ocPx;
+    }
+
+    // ── Footing width dim (right edge) ───────────────────────
+    const dimRx = ox + segHpx + 14;
+    h += `<line x1="${dimRx}" y1="${oy}" x2="${dimRx}" y2="${oy+fWpx}" stroke="${dc}" stroke-width="1"/>`;
+    h += `<line x1="${dimRx-3}" y1="${oy}"      x2="${dimRx+3}" y2="${oy}"      stroke="${dc}" stroke-width="1"/>`;
+    h += `<line x1="${dimRx-3}" y1="${oy+fWpx}" x2="${dimRx+3}" y2="${oy+fWpx}" stroke="${dc}" stroke-width="1"/>`;
+    h += `<text x="${dimRx+5}" y="${oy+fWpx/2+4}" ${mf} font-size="9" fill="${dc}">${fWin}"</text>`;
+
+    // ── Corner hook callout ───────────────────────────────────
+    h += `<text x="${ox+fWpx*0.45}" y="${oy+fWpx*0.55}" text-anchor="middle"
+            ${mf} font-size="10" fill="${ac}">↻</text>`;
+    h += `<text x="${ox+fWpx+10}" y="${oy+fWpx+50}" ${mf} font-size="9" fill="${ac}">90° hooks @ corner</text>`;
+
+    // ── Continuation arrows ───────────────────────────────────
+    h += `<text x="${ox+segHpx+4}" y="${dowelCenterY+5}" ${mf} font-size="13" fill="${dc}" opacity="0.45">→</text>`;
+    h += `<text x="${dowelCenterX-5}" y="${oy+segVpx+16}" ${mf} font-size="13" fill="${dc}" opacity="0.45">↓</text>`;
+
+    // ── Header ───────────────────────────────────────────────
+    h += `<text x="${ox+segHpx/2}" y="${oy-14}" text-anchor="middle"
+            ${mf} font-size="10" fill="${dc}">Corner detail — ${baysToShow} bays @ ${ocIn}" OC shown</text>`;
+
+    // ── Legend ───────────────────────────────────────────────
+    const legX = ox + fWpx + 8, legY = oy + fWpx + 40;
+    h += `<line x1="${legX}" y1="${legY+2}" x2="${legX+20}" y2="${legY+2}" stroke="${rc}" stroke-width="2.5"/>`;
+    h += `<text x="${legX+24}" y="${legY+6}" ${mf} font-size="9" fill="${rc}">Long. rebar</text>`;
+    h += `<circle cx="${legX+9}" cy="${legY+20}" r="5" fill="${dowelColor}" stroke="#1a4060" stroke-width="1.5"/>`;
+    h += `<text x="${legX+24}" y="${legY+24}" ${mf} font-size="9" fill="${dowelColor}">Vert. dowel</text>`;
+
+    svg.innerHTML = h;
+    document.getElementById('rd-footing-plan-cap').textContent =
+      `${fBars} longitudinal bar(s) per leg · Dowels at ${ocIn}" OC · ${dowelCountH} shown per leg (continues full perimeter)`;
+  })();
+
+  // update OC table row for footing
+  const fMinW = (v('footingRebar')||2)*1.5*2 + 6 + 3;
+  document.getElementById('oc-f-barsize').textContent = '#' + (v('footingRebar')>=3?5:4);
+  document.getElementById('oc-f-qty').textContent = v('footingRebar')||2;
+  document.getElementById('oc-f-minwidth').textContent = fMinW.toFixed(0)+'"';
+
+  // ─── 3. STEM WALL CROSS-SECTION ──────────────────────────
+  (function() {
+    const svg = document.getElementById('rd-wall-xsec');
+    if (!svg) return;
+    const vw=340,vh=240, cover=2;
+    const sc=Math.min((vw-80)/wWin, (vh-80)/wallIn, 5.5);
+    const wW=wWin*sc, wH=wallIn*sc;
+    const ox=(vw-wW)/2, oy=(vh-wH)/2;
+    let h='';
+
+    // wall body
+    h+=`<rect x="${ox}" y="${oy}" width="${wW}" height="${wH}" fill="${cc}" stroke="#8a7060" stroke-width="1.5" rx="1"/>`;
+
+    // cover box
+    const cv=cover*sc;
+    h+=`<rect x="${ox+cv}" y="${oy+cv}" width="${wW-2*cv}" height="${wH-2*cv}" fill="none" stroke="${ac}" stroke-width="0.6" stroke-dasharray="4,3" opacity="0.5"/>`;
+
+    // vertical bars (2 — left and right face)
+    const barR=Math.max(3,0.5*sc*0.8);
+    const lx=ox+cv+barR, rx2=ox+wW-cv-barR;
+    h+=`<line x1="${lx}" y1="${oy+cv}" x2="${lx}" y2="${oy+wH-cv}" stroke="${rc}" stroke-width="2.5"/>`;
+    h+=`<line x1="${rx2}" y1="${oy+cv}" x2="${rx2}" y2="${oy+wH-cv}" stroke="${rc}" stroke-width="2.5"/>`;
+    // bar dots at top and bottom
+    [oy+cv+barR, oy+wH-cv-barR].forEach(cy=>{
+      h+=`<circle cx="${lx}" cy="${cy}" r="${barR}" fill="${rc}" stroke="#2a5070" stroke-width="1.2"/>`;
+      h+=`<circle cx="${rx2}" cy="${cy}" r="${barR}" fill="${rc}" stroke="#2a5070" stroke-width="1.2"/>`;
+    });
+
+    // horizontal bars (wHorizBars)
+    for(let i=1;i<=wHorizBars;i++){
+      const by=oy+cv+(wH-2*cv)/(wHorizBars+1)*i;
+      h+=`<line x1="${ox+cv}" y1="${by}" x2="${ox+wW-cv}" y2="${by}" stroke="${gc}" stroke-width="2"/>`;
+    }
+
+    // grade line
+    const gY=oy+aboveIn*sc;
+    h+=`<line x1="${ox-20}" y1="${gY}" x2="${ox+wW+20}" y2="${gY}" stroke="#8a7a5a" stroke-width="1" stroke-dasharray="5,3"/>`;
+    h+=`<text x="${ox-22}" y="${gY-4}" text-anchor="end" ${mf} font-size="8" fill="#8a7a5a">Grade</text>`;
+
+    // width dim
+    const dimY=oy+wH+22;
+    h+=`<line x1="${ox}" y1="${dimY}" x2="${ox+wW}" y2="${dimY}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${ox}" y1="${dimY-4}" x2="${ox}" y2="${dimY+4}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${ox+wW}" y1="${dimY-4}" x2="${ox+wW}" y2="${dimY+4}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<text x="${ox+wW/2}" y="${dimY+13}" text-anchor="middle" ${mf} font-size="10" fill="${dc}">${wWin}" wall width</text>`;
+
+    // height dim
+    const ldx=ox-20;
+    h+=`<line x1="${ldx}" y1="${oy}" x2="${ldx}" y2="${oy+wH}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${ldx-3}" y1="${oy}" x2="${ldx+3}" y2="${oy}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${ldx-3}" y1="${oy+wH}" x2="${ldx+3}" y2="${oy+wH}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<text x="${ldx-5}" y="${oy+wH/2+4}" text-anchor="end" ${mf} font-size="10" fill="${dc}">${wallIn}"</text>`;
+
+    // cover callout
+    h+=`<line x1="${ox}" y1="${oy+cv}" x2="${ox+cv}" y2="${oy+cv}" stroke="${ac}" stroke-width="0.8"/>`;
+    h+=`<text x="${ox+wW+5}" y="${oy+cv+4}" ${mf} font-size="9" fill="${ac}">2" cover</text>`;
+
+    // legend
+    h+=`<text x="${ox+wW/2+4}" y="${oy-10}" text-anchor="middle" ${mf} font-size="9" fill="${rc}">— Vert. bars</text>`;
+    h+=`<text x="${ox+wW/2+4}" y="${oy-2}" text-anchor="middle" ${mf} font-size="9" fill="${gc}">— Horiz. bars</text>`;
+
+    svg.innerHTML=h;
+    document.getElementById('rd-wall-xsec-cap').textContent=
+      `${wWin}" wall · 2 vertical bars + ${wHorizBars} horizontal bars · 2" min cover (formed face)`;
+  })();
+
+  // ─── 4. STEM WALL ELEVATION VIEW ─────────────────────────
+  (function() {
+    const svg = document.getElementById('rd-wall-elev');
+    if (!svg) return;
+    const vw=340,vh=240;
+    // Show a section of wall from the side — e.g. 2 bays
+    const showBays=3, cover=2;
+    const sc=Math.min((vh-60)/wallIn, 4.5);
+    const wH=wallIn*sc;
+    const bayW=Math.min((vw-50)/showBays, ocIn*sc, 80);
+    const segW=bayW*showBays;
+    const ox=(vw-segW)/2, oy=(vh-wH)/2;
+    let h='';
+
+    // wall face
+    h+=`<rect x="${ox}" y="${oy}" width="${segW}" height="${wH}" fill="${cc}" stroke="#8a7060" stroke-width="1.5"/>`;
+
+    // vertical bars at OC spacing
+    for(let i=0;i<=showBays;i++){
+      const bx=ox+i*bayW;
+      h+=`<line x1="${bx}" y1="${oy+4}" x2="${bx}" y2="${oy+wH-4}" stroke="${rc}" stroke-width="2.5" opacity="0.9"/>`;
+      // OC label between bars
+      if(i<showBays){
+        h+=`<line x1="${bx}" y1="${oy+wH+14}" x2="${bx+bayW}" y2="${oy+wH+14}" stroke="${dc}" stroke-width="0.8"/>`;
+        h+=`<line x1="${bx}" y1="${oy+wH+10}" x2="${bx}" y2="${oy+wH+18}" stroke="${dc}" stroke-width="0.8"/>`;
+        h+=`<line x1="${bx+bayW}" y1="${oy+wH+10}" x2="${bx+bayW}" y2="${oy+wH+18}" stroke="${dc}" stroke-width="0.8"/>`;
+        h+=`<text x="${bx+bayW/2}" y="${oy+wH+28}" text-anchor="middle" ${mf} font-size="9" fill="${dc}">${ocIn}" OC</text>`;
+      }
+    }
+
+    // horizontal bars
+    const cv=cover*sc;
+    for(let i=1;i<=wHorizBars;i++){
+      const by=oy+cv+(wH-2*cv)/(wHorizBars+1)*i;
+      h+=`<line x1="${ox+4}" y1="${by}" x2="${ox+segW-4}" y2="${by}" stroke="${gc}" stroke-width="2.5" opacity="0.9"/>`;
+    }
+
+    // horizontal bar spacing callout on right
+    if(wHorizBars>1){
+      const by0=oy+cv+(wH-2*cv)/(wHorizBars+1);
+      const by1=oy+cv+(wH-2*cv)/(wHorizBars+1)*2;
+      const rx3=ox+segW+12;
+      h+=`<line x1="${rx3}" y1="${by0}" x2="${rx3}" y2="${by1}" stroke="${gc}" stroke-width="0.8"/>`;
+      h+=`<line x1="${rx3-3}" y1="${by0}" x2="${rx3+3}" y2="${by0}" stroke="${gc}" stroke-width="0.8"/>`;
+      h+=`<line x1="${rx3-3}" y1="${by1}" x2="${rx3+3}" y2="${by1}" stroke="${gc}" stroke-width="0.8"/>`;
+      const hSpIn = (wallIn-2*cover)/(wHorizBars+1);
+      h+=`<text x="${rx3+5}" y="${(by0+by1)/2+4}" ${mf} font-size="9" fill="${gc}">${hSpIn.toFixed(0)}"</text>`;
+    }
+
+    // grade line
+    const gY=oy+aboveIn*sc;
+    h+=`<line x1="${ox-10}" y1="${gY}" x2="${ox+segW+10}" y2="${gY}" stroke="#8a7a5a" stroke-width="1" stroke-dasharray="5,3"/>`;
+    h+=`<text x="${ox-12}" y="${gY-4}" text-anchor="end" ${mf} font-size="8" fill="#8a7a5a">Grade</text>`;
+    h+=`<text x="${ox-12}" y="${gY+10}" text-anchor="end" ${mf} font-size="8" fill="#8a7a5a">${belowIn}" below</text>`;
+    h+=`<text x="${ox-12}" y="${oy+8}" text-anchor="end" ${mf} font-size="8" fill="#8a7a5a">${aboveIn}" above</text>`;
+
+    // legend
+    h+=`<text x="${ox+segW/2}" y="${oy-12}" text-anchor="middle" ${mf} font-size="9" fill="${rc}">│ Vertical bars · ${ocIn}" OC</text>`;
+    h+=`<text x="${ox+segW/2}" y="${oy-3}" text-anchor="middle" ${mf} font-size="9" fill="${gc}">— Horizontal bars · ${wHorizBars} total</text>`;
+
+    // continuation arrows
+    h+=`<text x="${ox-4}" y="${oy+wH/2}" text-anchor="end" ${mf} font-size="14" fill="${dc}" opacity="0.5">←</text>`;
+    h+=`<text x="${ox+segW+4}" y="${oy+wH/2}" ${mf} font-size="14" fill="${dc}" opacity="0.5">→</text>`;
+
+    svg.innerHTML=h;
+    document.getElementById('rd-wall-elev-cap').textContent=
+      `Elevation view · vertical bars at ${ocIn}" OC · ${wHorizBars} horizontal bars spaced evenly · ${wallIn}" total height`;
+  })();
+
+  // update OC table row for wall
+  document.getElementById('oc-w-spacing').textContent = '★ ' + ocIn + '" OC';
+  document.getElementById('oc-w-hbars').textContent = wHorizBars;
+
+  // ─── 5. SLAB PLAN VIEW (top-down grid) ───────────────────
+  (function() {
+    const svg = document.getElementById('rd-slab-plan');
+    if (!svg) return;
+    const vw=680, vh=340, edgeCover=6; // inches
+    const scX=Math.min((vw-80)/slabL, (vh-60)/slabW, 3.8);
+    const sW=slabL*scX, sH=slabW*scX;
+    const ox=(vw-sW)/2, oy=(vh-sH)/2;
+    const ocPx=slabOC*scX;
+    let h='';
+
+    // slab outline
+    h+=`<rect x="${ox}" y="${oy}" width="${sW}" height="${sH}" fill="rgba(192,176,144,0.18)" stroke="#8a7060" stroke-width="2"/>`;
+
+    // long bars (running L to R, spaced vertically)
+    let y=oy+edgeCover*scX;
+    let longCount=0;
+    while(y<=oy+sH-edgeCover*scX+0.5){
+      h+=`<line x1="${ox+4}" y1="${y}" x2="${ox+sW-4}" y2="${y}" stroke="${rc}" stroke-width="1.5" opacity="0.85"/>`;
+      y+=ocPx; longCount++;
+    }
+
+    // short bars (running T to B, spaced horizontally)
+    let x=ox+edgeCover*scX;
+    let shortCount=0;
+    while(x<=ox+sW-edgeCover*scX+0.5){
+      h+=`<line x1="${x}" y1="${oy+4}" x2="${x}" y2="${oy+sH-4}" stroke="${rc}" stroke-width="1.5" opacity="0.55"/>`;
+      x+=ocPx; shortCount++;
+    }
+
+    // OC dimension (horizontal)
+    const dY=oy+sH+24;
+    const firstX=ox+edgeCover*scX, secondX=firstX+ocPx;
+    if(secondX<ox+sW){
+      h+=`<line x1="${firstX}" y1="${dY}" x2="${secondX}" y2="${dY}" stroke="${dc}" stroke-width="1"/>`;
+      h+=`<line x1="${firstX}" y1="${dY-4}" x2="${firstX}" y2="${dY+4}" stroke="${dc}" stroke-width="1"/>`;
+      h+=`<line x1="${secondX}" y1="${dY-4}" x2="${secondX}" y2="${dY+4}" stroke="${dc}" stroke-width="1"/>`;
+      h+=`<text x="${(firstX+secondX)/2}" y="${dY+14}" text-anchor="middle" ${mf} font-size="10" fill="${dc}">${slabOC}" OC</text>`;
+    }
+
+    // slab dimensions
+    h+=`<line x1="${ox}" y1="${oy-14}" x2="${ox+sW}" y2="${oy-14}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${ox}" y1="${oy-18}" x2="${ox}" y2="${oy-10}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${ox+sW}" y1="${oy-18}" x2="${ox+sW}" y2="${oy-10}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<text x="${ox+sW/2}" y="${oy-18}" text-anchor="middle" ${mf} font-size="11" fill="${dc}">${slabL.toFixed(0)}' — ${longCount} bars</text>`;
+
+    const rdx=ox+sW+18;
+    h+=`<line x1="${rdx}" y1="${oy}" x2="${rdx}" y2="${oy+sH}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${rdx-4}" y1="${oy}" x2="${rdx+4}" y2="${oy}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${rdx-4}" y1="${oy+sH}" x2="${rdx+4}" y2="${oy+sH}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<text x="${rdx+12}" y="${oy+sH/2}" text-anchor="middle" ${mf} font-size="11" fill="${dc}" transform="rotate(90,${rdx+12},${oy+sH/2})">${slabW.toFixed(0)}' — ${shortCount} bars</text>`;
+
+    // edge cover callout
+    const ecPx=edgeCover*scX;
+    h+=`<line x1="${ox}" y1="${oy+sH*0.15}" x2="${ox+ecPx}" y2="${oy+sH*0.15}" stroke="${ac}" stroke-width="0.8" stroke-dasharray="3,2"/>`;
+    h+=`<text x="${ox+ecPx+3}" y="${oy+sH*0.15-3}" ${mf} font-size="9" fill="${ac}">${edgeCover}" edge</text>`;
+
+    // control joint lines (every ~120" = 10ft)
+    const cjSpIn=120, cjSpPx=cjSpIn*scX;
+    let cjX=ox+cjSpPx;
+    while(cjX<ox+sW-10){
+      h+=`<line x1="${cjX}" y1="${oy}" x2="${cjX}" y2="${oy+sH}" stroke="#e05050" stroke-width="1" stroke-dasharray="6,4" opacity="0.5"/>`;
+      cjX+=cjSpPx;
+    }
+    if(cjSpPx<sW) h+=`<text x="${ox+cjSpPx/2}" y="${oy+sH-6}" text-anchor="middle" ${mf} font-size="8" fill="#e05050" opacity="0.7">Control joint (10' OC)</text>`;
+
+    svg.innerHTML=h;
+    document.getElementById('rd-slab-plan-cap').textContent=
+      `${slabL.toFixed(0)}' × ${slabW.toFixed(0)}' slab · #4 bars at ${slabOC}" OC both ways · Red dashed = suggested control joints every 10'`;
+  })();
+
+  // ─── 6. SLAB CROSS-SECTION EDGE DETAIL ───────────────────
+  (function() {
+    const svg = document.getElementById('rd-slab-xsec');
+    if (!svg) return;
+    const vw=340, vh=180;
+    const slabTshow=Math.max(slabTin,4);
+    const sc=Math.min((vh-60)/slabTshow, (vw-80)/48, 5);
+    const sW=Math.min(48*sc, vw*0.7), sH=slabTin*sc;
+    const ox=(vw-sW)/2, oy=(vh-sH)/2+10;
+    const cover=0.75, barD=0.5; // inches
+    const barR=Math.max(3, barD*sc*0.9);
+    const cvPx=cover*sc;
+    let h='';
+
+    // ground
+    h+=`<rect x="0" y="${oy+sH}" width="${vw}" height="${vh-oy-sH}" fill="rgba(100,80,50,0.12)"/>`;
+    // slab
+    h+=`<rect x="${ox}" y="${oy}" width="${sW}" height="${sH}" fill="${cc}" stroke="#8a7060" stroke-width="1.5"/>`;
+
+    // rebar at upper-third
+    const barY=oy+sH/3;
+    const ocPx=slabOC*sc;
+    let bx=ox+edgeSp()*sc;
+    while(bx<ox+sW-4){
+      h+=`<circle cx="${bx}" cy="${barY}" r="${barR}" fill="${rc}" stroke="#2a5070" stroke-width="1.2"/>`;
+      bx+=ocPx;
+    }
+
+    // cover dim
+    h+=`<line x1="${ox-16}" y1="${oy}" x2="${ox-16}" y2="${barY}" stroke="${ac}" stroke-width="0.8"/>`;
+    h+=`<line x1="${ox-19}" y1="${oy}" x2="${ox-13}" y2="${oy}" stroke="${ac}" stroke-width="0.8"/>`;
+    h+=`<line x1="${ox-19}" y1="${barY}" x2="${ox-13}" y2="${barY}" stroke="${ac}" stroke-width="0.8"/>`;
+    h+=`<text x="${ox-22}" y="${(oy+barY)/2+3}" text-anchor="end" ${mf} font-size="9" fill="${ac}">¾"</text>`;
+
+    // slab thickness dim
+    const rdx=ox+sW+16;
+    h+=`<line x1="${rdx}" y1="${oy}" x2="${rdx}" y2="${oy+sH}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${rdx-3}" y1="${oy}" x2="${rdx+3}" y2="${oy}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<line x1="${rdx-3}" y1="${oy+sH}" x2="${rdx+3}" y2="${oy+sH}" stroke="${dc}" stroke-width="1"/>`;
+    h+=`<text x="${rdx+5}" y="${oy+sH/2+4}" ${mf} font-size="10" fill="${dc}">${slabTin}"</text>`;
+
+    // OC callout
+    h+=`<text x="${ox+sW/2}" y="${oy-10}" text-anchor="middle" ${mf} font-size="10" fill="${dc}">${slabOC}" OC → bars at upper ⅓</text>`;
+
+    // grade
+    h+=`<text x="${ox-4}" y="${oy+sH+14}" ${mf} font-size="8" fill="#8a7a5a">Grade / sub-base</text>`;
+
+    svg.innerHTML=h;
+    document.getElementById('rd-slab-xsec-cap').textContent=
+      `${slabTin}" slab · bars at upper ⅓ depth · ¾" min top cover · ${slabOC}" OC spacing`;
+
+    function edgeSp(){ return Math.min(slabOC/2, 6); }
+  })();
+
+  // ─── 7. SLAB LEGEND ──────────────────────────────────────
+  (function(){
+    const leg=document.getElementById('rd-slab-legend');
+    if(!leg)return;
+    leg.innerHTML=`
+      <div class="legend-item"><div class="legend-swatch rebar"></div><span>Rebar — ${slabOC}" OC both ways</span></div>
+      <div class="legend-item"><div class="legend-dot"></div><span>Bar cross-section (end view)</span></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#e05050;opacity:0.6"></div><span>Control joints — every ~10'</span></div>
+      <div class="legend-item"><div class="legend-swatch cover"></div><span>Edge zone — first bar within ${Math.min(slabOC/2,6).toFixed(0)}" of edge</span></div>
+      <div class="legend-item"><div class="legend-swatch dim"></div><span>Dimension / callout lines</span></div>
+      <div style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.6">
+        Bar chair height = slab thickness ÷ 3 − ½"<br>
+        For ${slabTin}" slab → use <strong style="color:var(--text)">${Math.max(1,(slabTin/3-0.5)).toFixed(1)}"</strong> chairs
+      </div>`;
+  })();
+
+  // update OC table row for slab
+  document.getElementById('oc-s-spacing').textContent = '★ ' + slabOC + '" OC';
+  document.getElementById('oc-s-barsize').textContent = '#' + (v('slabRebarSize')||4);
+  // sticks per 1000 sqft estimate
+  const barsPerKL = Math.ceil(Math.sqrt(1000)/((slabOC/12)));
+  const barsPerKS = Math.ceil(Math.sqrt(1000)/((slabOC/12)));
+  const lfPerK = (barsPerKL+barsPerKS)*Math.sqrt(1000)*1.10;
+  document.getElementById('oc-s-sticks').textContent = '~' + Math.ceil(lfPerK/(v('slabStickLen')||20));
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+calcFoundation();
+calcSlab();
+updateReinfUI();
+document.getElementById('edgeResultBlock').style.opacity = '0.35';
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(r => console.log('SW registered:', r.scope))
+        .catch(e => console.log('SW failed:', e));
+    });
+  }
+</script>
+</body>
+</html>
